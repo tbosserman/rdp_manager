@@ -12,6 +12,7 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include "rdp_manager.h"
+#include "version.h"
 #include "crypto.h"
 
 #define	MAX_ARGS	9
@@ -651,4 +652,13 @@ on_delete_button_clicked()
 	alert("error saving to %s: %s", entries_file, strerror(errno));
 	return;
     }
+}
+
+/************************************************************************
+ ********************    ON_ABOUT_BUTTON_CLICKED     ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_about_button_clicked()
+{
+    alert("RDP Session Manager version %.2g", VERSION);
 }

@@ -1,1 +1,5 @@
 *.o
+*~
+rdp_manager
+rdp_manager.x86
+rdp_manager.arm
