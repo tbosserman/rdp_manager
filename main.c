@@ -22,7 +22,7 @@ usage()
 
 void version_info()
 {
-    fprintf(stderr, "RDP Session Manager version %.2g\n", VERSION);
+    fprintf(stderr, "RDP Session Manager version %s\n", VERSION);
     exit(1);
 }
 

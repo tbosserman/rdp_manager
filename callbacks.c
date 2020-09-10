@@ -660,5 +660,5 @@ on_delete_button_clicked()
 G_MODULE_EXPORT void
 on_about_button_clicked()
 {
-    alert("RDP Session Manager version %.2g", VERSION);
+    alert("RDP Session Manager version %s", VERSION);
 }
