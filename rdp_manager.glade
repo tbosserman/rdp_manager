@@ -379,6 +379,8 @@
                   <object class="GtkListBox" id="listbox">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="activate_on_single_click">False</property>
+                    <signal name="row-activated" handler="on_listbox_row_activated" swapped="no"/>
                   </object>
                 </child>
               </object>

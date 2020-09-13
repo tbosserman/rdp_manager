@@ -561,7 +561,8 @@ update_entry()
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*widget;
-
+    GList		*child;
+    GtkLabel		*label;
 
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
@@ -587,6 +588,16 @@ update_entry()
 	{
 	    fields[i] = strdup(textp);
 	    alltrim(fields[i]);
+	}
+	if (i == ENTRY_NAME)
+	{
+	    /*
+	     * Update the label for this entry in the main window.
+	     * I promise that each row only has one child!
+	     */
+	    child = gtk_container_get_children(GTK_CONTAINER(row));
+	    label = GTK_LABEL(child->data);
+	    gtk_label_set_text(label, textp);
 	}
     }
 
@@ -661,4 +672,14 @@ G_MODULE_EXPORT void
 on_about_button_clicked()
 {
     alert("RDP Session Manager version %s", VERSION);
+}
+
+/************************************************************************
+ ********************                X               ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_listbox_row_activated()
+{
+    mylog("Inside on_listbox_row_activated\n");
+    on_launch_button_clicked();
 }
