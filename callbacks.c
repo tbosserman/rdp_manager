@@ -15,8 +15,7 @@
 #include "version.h"
 #include "crypto.h"
 
-#define	MAX_ARGS	9
-
+#define	MAX_ARGS	9 
 static aes256_key_t	crypto_key;
 static char		config_dir[512];
 static char		entries_file[1024];
@@ -30,8 +29,7 @@ int			mode;
 
 char			*widget_names[] = {
     "entry_name",	"host",		"port",		"username",
-    "password",		"display_size",	"gw_host",	"gw_port",
-    "gw_username",	"gw_password"
+    "display_size",	"gw_host",	"gw_port",	"gw_username"
 };
 
 extern GtkBuilder	*glade_xml;
@@ -292,9 +290,8 @@ on_add_button_clicked()
 G_MODULE_EXPORT void
 on_edit_button_clicked()
 {
-    int			i, len, rownum;
+    int			i, rownum;
     char		**fields;
-    u_int8_t		*encrypted, passwd[1024], gw_passwd[128];
     GtkWidget		*win;
     GtkListBox		*box;
     GtkListBoxRow	*row;
@@ -308,37 +305,12 @@ on_edit_button_clicked()
 	return;
     rownum = gtk_list_box_row_get_index(row);
     fields = entries[rownum].fields;
-    encrypted = (u_int8_t *)fields[PASSWORD];
-    len = decode(encrypted, (u_int8_t *)passwd, strlen((char *)encrypted),
-	sizeof(passwd)-1, &crypto_key);
-    passwd[len] = '\0';
-    if (fields[GW_PASSWORD][0] != '\0')
-    {
-	encrypted = (u_int8_t *)fields[GW_PASSWORD];
-	len = decode(encrypted, (u_int8_t *)gw_passwd,
-	    strlen((char *)encrypted), sizeof(gw_passwd)-1, &crypto_key);
-	gw_passwd[len] = '\0';
-    }
-    else
-	gw_passwd[0] = '\0';
 
     /* Copy data from the entries table into the GUI */
     for (i = 0; i < NUM_FIELDS; ++i)
     {
 	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	switch(i)
-	{
-	    case PASSWORD:
-		gtk_entry_set_text(widget, (const char *)passwd);
-		break;
-
-	    case GW_PASSWORD:
-		gtk_entry_set_text(widget, (const char *)gw_passwd);
-		break;
-
-	    default:
-		gtk_entry_set_text(widget, fields[i]);
-	}
+	gtk_entry_set_text(widget, fields[i]);
     }
 
     win = (GtkWidget *)gtk_builder_get_object(glade_xml, "add_window");
@@ -360,18 +332,19 @@ gen_vector(char *fmt, ...)
 }
 
 /************************************************************************
- ********************   ON_LAUNCH_BUTTON_CLICKED     ********************
+ ********************        LAUNCH_XFREERDP         ********************
  ************************************************************************/
-G_MODULE_EXPORT void
-on_launch_button_clicked()
+void
+launch_xfreerdp()
 {
-    int			i, fd, len, rownum, fnum;
+    int			i, fd, rownum, fnum;
     pid_t		pid;
-    char		**fields, *gw_user, gw_passwd[1024];
+    char		**fields, *gw_user;
     char		*args[MAX_ARGS], *temp, *p, logfile[1024];
-    char		passwd[1024], *encrypted;
+    const gchar		*passwd, *gw_passwd;
     GtkListBox		*box;
     GtkListBoxRow	*row;
+    GtkEntry		*pw_entry, *gw_entry;
 
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
@@ -379,10 +352,12 @@ on_launch_button_clicked()
 	return;
     rownum = gtk_list_box_row_get_index(row);
     fields = entries[rownum].fields;
-    encrypted = fields[PASSWORD];
-    len = decode((u_int8_t *)encrypted, (u_int8_t *)passwd, strlen(encrypted),
-	sizeof(passwd)-1, &crypto_key);
-    passwd[len] = '\0';
+    pw_entry = GTK_ENTRY(gtk_builder_get_object(glade_xml, "host_password"));
+    gw_entry = GTK_ENTRY(gtk_builder_get_object(glade_xml, "gw_password"));
+
+    /* Extract the passwords from the entry fields */
+    passwd = gtk_entry_get_text(pw_entry);
+    gw_passwd = gtk_entry_get_text(gw_entry);
 
     if ((temp = fields[DISPLAY_SIZE]) == NULL)
 	temp = DEFAULT_SIZE;
@@ -400,15 +375,8 @@ on_launch_button_clicked()
 	gw_user = fields[GW_USER];
 	if (gw_user[0] == '\0')
 	    gw_user = fields[USERNAME];
-	encrypted = fields[GW_PASSWORD];
-	if (*encrypted == '\0')
-	    strcpy(gw_passwd, passwd);
-	else
-	{
-	    len = decode((u_int8_t *)encrypted, (u_int8_t *)gw_passwd,
-		strlen(encrypted), sizeof(gw_passwd)-1, &crypto_key);
-	    gw_passwd[len] = '\0';
-	}
+	if (gw_passwd[0] == '\0')
+	    gw_passwd = passwd;
 	args[fnum++] = gen_vector("/g:%s:%s", fields[GATEWAY], fields[GW_PORT]);
 	args[fnum++] = gen_vector("/gu:%s", gw_user);
 	args[fnum++] = gen_vector("/gp:%s", gw_passwd);
@@ -503,8 +471,8 @@ check_entry(entry_t *entry)
 int
 add_entry()
 {
-    int			i, len;
-    u_int8_t		*plain, encrypted[1024];
+    int			i;
+    u_int8_t		*plain;
     entry_t		*entry;
     GtkEntry		*widget;
     const gchar		*textp;
@@ -522,17 +490,7 @@ add_entry()
 	textp = gtk_entry_get_text(widget);
 	plain = (u_int8_t *)strdup(textp);
 	alltrim((char *)plain);
-	if (*plain != '\0' && (i == PASSWORD || i == GW_PASSWORD))
-	{
-	    len = encode((u_int8_t *)textp, encrypted, strlen(textp),
-		sizeof(encrypted)-1, &crypto_key);
-	    encrypted[len] = '\0';
-	    textp = strdup((char *)encrypted);
-	    free(plain);
-	}
-	else
-	    textp = (char *)plain;
-
+	textp = (char *)plain;
 	entry->fields[i] = (char *)textp;
     }
 
@@ -554,9 +512,8 @@ add_entry()
 int
 update_entry()
 {
-    int			i, len, rownum;
+    int			i, rownum;
     char		**fields;
-    u_int8_t		encrypted[1024];
     const gchar		*textp;
     GtkListBox		*box;
     GtkListBoxRow	*row;
@@ -577,18 +534,8 @@ update_entry()
 	free(fields[i]);
 	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
 	textp = gtk_entry_get_text(widget);
-	if (*textp != '\0' && (i == PASSWORD || i == GW_PASSWORD))
-	{
-	    len = encode((u_int8_t *)textp, encrypted, strlen(textp),
-		sizeof(encrypted)-1, &crypto_key);
-	    encrypted[len] = '\0';
-	    fields[i] = strdup((char *)encrypted);
-	}
-	else
-	{
-	    fields[i] = strdup(textp);
-	    alltrim(fields[i]);
-	}
+	fields[i] = strdup(textp);
+	alltrim(fields[i]);
 	if (i == ENTRY_NAME)
 	{
 	    /*
@@ -675,11 +622,75 @@ on_about_button_clicked()
 }
 
 /************************************************************************
- ********************                X               ********************
+ ********************   ON_LAUNCH_BUTTON_CLICKED     ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_launch_button_clicked()
+{
+    GtkWidget		*win, *passwd, *gw_label, *gw_passwd;
+    GtkListBoxRow	*row;
+    GtkListBox		*box;
+    int			rownum;
+    char		**fields;
+
+    win = GTK_WIDGET(gtk_builder_get_object(glade_xml, "auth_window"));
+    passwd = GTK_WIDGET(gtk_builder_get_object(glade_xml, "host_password"));
+    gw_label = GTK_WIDGET(gtk_builder_get_object(glade_xml, "gw_passwd_label"));
+    gw_passwd = GTK_WIDGET(gtk_builder_get_object(glade_xml, "gw_password"));
+    box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
+    row = gtk_list_box_get_selected_row(box);
+    if (row == NULL)
+	return;
+    rownum = gtk_list_box_row_get_index(row);
+    fields = entries[rownum].fields;
+    gtk_entry_set_text(GTK_ENTRY(passwd), "");
+    gtk_entry_set_text(GTK_ENTRY(gw_passwd), "");
+
+    if (fields[GATEWAY][0] == '\0')
+    {
+	gtk_widget_hide(gw_label);
+	gtk_widget_hide(gw_passwd);
+    }
+    else
+    {
+	gtk_widget_show(gw_label);
+	gtk_widget_show(gw_passwd);
+    }
+
+    gtk_widget_show(win);
+}
+
+/************************************************************************
+ ********************    ON_LISTBOX_ROW_ACTIVATED    ********************
  ************************************************************************/
 G_MODULE_EXPORT void
 on_listbox_row_activated()
 {
     mylog("Inside on_listbox_row_activated\n");
     on_launch_button_clicked();
+}
+
+/************************************************************************
+ ********************   ON_AUTH_OK_BUTTON_CLICKED    ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_auth_ok_button_clicked()
+{
+    GtkWindow	*win;
+
+    win = GTK_WINDOW(gtk_builder_get_object(glade_xml, "auth_window"));
+    gtk_widget_hide(GTK_WIDGET(win));
+    launch_xfreerdp();
+}
+
+/************************************************************************
+ ******************** ON_AUTH_CANCEL_BUTTON_CLICKED  ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_auth_cancel_clicked()
+{
+    GtkWindow	*win;
+
+    win = GTK_WINDOW(gtk_builder_get_object(glade_xml, "auth_window"));
+    gtk_widget_hide(GTK_WIDGET(win));
 }
