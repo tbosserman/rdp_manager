@@ -6,7 +6,8 @@
 #define GATEWAY		5
 #define GW_PORT		6
 #define GW_USER		7
-#define NUM_FIELDS	8
+#define EXTRA_ARGS	8
+#define NUM_FIELDS	9
 #define MAX_ENTRIES	250
 #define ADD_MODE	0
 #define EDIT_MODE	1

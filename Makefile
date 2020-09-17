@@ -21,4 +21,4 @@ rdp_xml.h: rdp_manager.glade
 	./gen_hdr.sh
 
 clean:
-	$(RM) *.o rdp_manager
+	$(RM) *.o rdp_manager rdp_xml.h

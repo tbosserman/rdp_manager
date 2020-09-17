@@ -29,7 +29,8 @@ int			mode;
 
 char			*widget_names[] = {
     "entry_name",	"host",		"port",		"username",
-    "display_size",	"gw_host",	"gw_port",	"gw_username"
+    "display_size",	"gw_host",	"gw_port",	"gw_username",
+    "xfreerdp_args"
 };
 
 extern GtkBuilder	*glade_xml;
@@ -255,6 +256,9 @@ clear_display()
 	    case GW_PORT:
 		gtk_entry_set_text(widget, "443");
 		break;
+	    case EXTRA_ARGS:
+		gtk_entry_set_text(widget, "/bpp:8 /gdi:hw -themes -wallpaper");
+		break;
 	    default:
 		gtk_entry_set_text(widget, "");
 	}
@@ -339,7 +343,7 @@ launch_xfreerdp()
 {
     int			i, fd, rownum, fnum;
     pid_t		pid;
-    char		**fields, *gw_user;
+    char		**fields, *gw_user, *extra_args, *argp;
     char		*args[MAX_ARGS], *temp, *p, logfile[1024];
     const gchar		*passwd, *gw_passwd;
     GtkListBox		*box;
@@ -352,10 +356,11 @@ launch_xfreerdp()
 	return;
     rownum = gtk_list_box_row_get_index(row);
     fields = entries[rownum].fields;
+    extra_args = strdup(fields[EXTRA_ARGS]);
     pw_entry = GTK_ENTRY(gtk_builder_get_object(glade_xml, "host_password"));
     gw_entry = GTK_ENTRY(gtk_builder_get_object(glade_xml, "gw_password"));
 
-    /* Extract the passwords from the entry fields */
+    /* Extract the passwords & extra args from the entry fields */
     passwd = gtk_entry_get_text(pw_entry);
     gw_passwd = gtk_entry_get_text(gw_entry);
 
@@ -368,7 +373,6 @@ launch_xfreerdp()
     args[fnum++] = gen_vector("/u:%s", fields[USERNAME]);
     args[fnum++] = gen_vector("/p:%s", passwd);
     args[fnum++] = gen_vector("/v:%s:%s", fields[HOST], fields[PORT]);
-    args[fnum] = NULL;
     
     if (fields[GATEWAY][0] != '\0')
     {
@@ -380,8 +384,17 @@ launch_xfreerdp()
 	args[fnum++] = gen_vector("/g:%s:%s", fields[GATEWAY], fields[GW_PORT]);
 	args[fnum++] = gen_vector("/gu:%s", gw_user);
 	args[fnum++] = gen_vector("/gp:%s", gw_passwd);
-	args[fnum++] = NULL;
     }
+
+    /* Add in the "extra args" */
+    argp = strtok(extra_args, " ");
+    while (argp)
+    {
+	args[fnum++] = strdup(argp);
+	argp = strtok(NULL, " ");
+    }
+    args[fnum] = NULL;
+    free(extra_args);
 
     for (i = 0; args[i] != NULL; ++i)
     {
@@ -498,6 +511,7 @@ add_entry()
     {
 	for (i = 0; i < NUM_FIELDS; ++i)
 	    free(entry->fields[i]);
+	--num_entries;
 	return(-1);
     }
 
