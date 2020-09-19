@@ -376,6 +376,8 @@ launch_xfreerdp()
     args[fnum++] = gen_vector("/u:%s", fields[USERNAME]);
     args[fnum++] = gen_vector("/p:%s", passwd);
     args[fnum++] = gen_vector("/v:%s:%s", fields[HOST], fields[PORT]);
+    args[fnum++] = gen_vector("+auto-reconnect");
+    args[fnum++] = gen_vector("/auto-reconnect-max-retries:20");
     
     if (fields[GATEWAY][0] != '\0')
     {
