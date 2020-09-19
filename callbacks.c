@@ -131,7 +131,11 @@ handler(int sig)
      * We're not doing much here, just reaping the child process so it
      * doesn't turn into a zombie process.
      */
-    pid = wait(&status);
+    if ((pid = wait(&status)) < 0)
+    {
+	mylog("handler: wait(): %s\n", strerror(errno));
+	return;
+    }
     mylog("Child process %d exited with status %d\n", pid, status);
     if (status != 0)
 	alert("xfreerdp exited abnormally.\nLook at xfreerdp.log and "
