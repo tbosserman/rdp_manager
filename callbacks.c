@@ -372,7 +372,6 @@ launch_xfreerdp()
 	temp = DEFAULT_SIZE;
     fnum = 0;
     args[fnum++] = gen_vector("xfreerdp");
-    args[fnum++] = gen_vector("/cert-ignore");
     args[fnum++] = gen_vector("/size:%s", temp);
     args[fnum++] = gen_vector("/u:%s", fields[USERNAME]);
     args[fnum++] = gen_vector("/p:%s", passwd);
