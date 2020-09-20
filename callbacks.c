@@ -390,7 +390,7 @@ launch_xfreerdp()
     if (fields[IGNORE_CERT][0] == 'Y')
 	args[fnum++] = gen_vector("/cert-ignore");
     else
-	args[fnum++] = gen_vector("/cert-deny");
+	args[fnum++] = gen_vector("/cert-tofu");
 
     if (fields[GATEWAY][0] != '\0')
     {
