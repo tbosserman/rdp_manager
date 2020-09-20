@@ -15,7 +15,7 @@
 #include "version.h"
 #include "crypto.h"
 
-#define	MAX_ARGS	9 
+#define	MAX_ARGS	32
 static aes256_key_t	crypto_key;
 static char		config_dir[512];
 static char		entries_file[1024];
@@ -30,7 +30,7 @@ int			mode;
 char			*widget_names[] = {
     "entry_name",	"host",		"port",		"username",
     "display_size",	"gw_host",	"gw_port",	"gw_username",
-    "xfreerdp_args"
+    "ignore_cert",	"xfreerdp_args"
 };
 
 extern GtkBuilder	*glade_xml;
@@ -260,6 +260,9 @@ clear_display()
 	    case GW_PORT:
 		gtk_entry_set_text(widget, "443");
 		break;
+	    case IGNORE_CERT:
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), FALSE);
+		break;
 	    case EXTRA_ARGS:
 		gtk_entry_set_text(widget, "/bpp:8 /gdi:hw -themes -wallpaper");
 		break;
@@ -300,10 +303,10 @@ on_edit_button_clicked()
 {
     int			i, rownum;
     char		**fields;
-    GtkWidget		*win;
+    gboolean		is_active;
+    GtkWidget		*win, *widget;
     GtkListBox		*box;
     GtkListBoxRow	*row;
-    GtkEntry		*widget;
 
     mode = EDIT_MODE;
 
@@ -317,8 +320,14 @@ on_edit_button_clicked()
     /* Copy data from the entries table into the GUI */
     for (i = 0; i < NUM_FIELDS; ++i)
     {
-	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	gtk_entry_set_text(widget, fields[i]);
+	widget = GTK_WIDGET(gtk_builder_get_object(glade_xml, widget_names[i]));
+	if (i == IGNORE_CERT)
+	{
+	    is_active = (fields[i][0] == 'Y');
+	    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), is_active);
+	}
+	else
+	    gtk_entry_set_text(GTK_ENTRY(widget), fields[i]);
     }
 
     win = (GtkWidget *)gtk_builder_get_object(glade_xml, "add_window");
@@ -378,7 +387,11 @@ launch_xfreerdp()
     args[fnum++] = gen_vector("/v:%s:%s", fields[HOST], fields[PORT]);
     args[fnum++] = gen_vector("+auto-reconnect");
     args[fnum++] = gen_vector("/auto-reconnect-max-retries:20");
-    
+    if (fields[IGNORE_CERT][0] == 'Y')
+	args[fnum++] = gen_vector("/cert-ignore");
+    else
+	args[fnum++] = gen_vector("/cert-deny");
+
     if (fields[GATEWAY][0] != '\0')
     {
 	gw_user = fields[GW_USER];
@@ -484,16 +497,42 @@ check_entry(entry_t *entry)
 }
 
 /************************************************************************
+ ********************          COPY_FROM_GUi         ********************
+ ************************************************************************/
+void
+copy_from_gui(entry_t *entry)
+{
+    int			i;
+    gboolean		is_active;
+    GtkWidget		*widget;
+    char		*plain;
+    const gchar		*textp;
+
+    for (i = 0; i < NUM_FIELDS; ++i)
+    {
+	widget = GTK_WIDGET(gtk_builder_get_object(glade_xml, widget_names[i]));
+	if (i == IGNORE_CERT)
+	{
+	    is_active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+	    textp = is_active ? "Y" : "N";
+	}
+	else
+	    textp = gtk_entry_get_text(GTK_ENTRY(widget));
+	plain = strdup(textp);
+	alltrim(plain);
+	textp = plain;
+	entry->fields[i] = (char *)textp;
+    }
+}
+
+/************************************************************************
  ********************           ADD_ENTRY            ********************
  ************************************************************************/
 int
 add_entry()
 {
     int			i;
-    u_int8_t		*plain;
     entry_t		*entry;
-    GtkEntry		*widget;
-    const gchar		*textp;
 
     if (num_entries+1 >= MAX_ENTRIES)
     {
@@ -502,15 +541,7 @@ add_entry()
     }
 
     entry = &entries[num_entries++];
-    for (i = 0; i < NUM_FIELDS; ++i)
-    {
-	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	textp = gtk_entry_get_text(widget);
-	plain = (u_int8_t *)strdup(textp);
-	alltrim((char *)plain);
-	textp = (char *)plain;
-	entry->fields[i] = (char *)textp;
-    }
+    copy_from_gui(entry);
 
     if (check_entry(entry) < 0)
     {
@@ -533,10 +564,9 @@ update_entry()
 {
     int			i, rownum;
     char		**fields;
-    const gchar		*textp;
+    entry_t		*entry;
     GtkListBox		*box;
     GtkListBoxRow	*row;
-    GtkEntry		*widget;
     GList		*child;
     GtkLabel		*label;
 
@@ -544,28 +574,23 @@ update_entry()
     row = gtk_list_box_get_selected_row(box);
     rownum = gtk_list_box_row_get_index(row);
 
-    if (check_entry(&entries[rownum]) < 0)
-	return(-1);
+    entry = &entries[rownum];
     fields = entries[rownum].fields;
 
     for (i = 0; i < NUM_FIELDS; ++i)
-    {
 	free(fields[i]);
-	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	textp = gtk_entry_get_text(widget);
-	fields[i] = strdup(textp);
-	alltrim(fields[i]);
-	if (i == ENTRY_NAME)
-	{
-	    /*
-	     * Update the label for this entry in the main window.
-	     * I promise that each row only has one child!
-	     */
-	    child = gtk_container_get_children(GTK_CONTAINER(row));
-	    label = GTK_LABEL(child->data);
-	    gtk_label_set_text(label, textp);
-	}
-    }
+    copy_from_gui(entry);
+
+    /*
+     * Update the label for this entry in the main window.
+     * I promise that each row only has one child!
+     */
+    child = gtk_container_get_children(GTK_CONTAINER(row));
+    label = GTK_LABEL(child->data);
+    gtk_label_set_text(label, fields[ENTRY_NAME]);
+
+    if (check_entry(entry) < 0)
+	return(-1);
 
     return(0);
 }
