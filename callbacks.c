@@ -15,7 +15,7 @@
 #include "version.h"
 #include "crypto.h"
 
-#define	MAX_ARGS	9
+#define	MAX_ARGS	32
 
 static aes256_key_t	crypto_key;
 static char		config_dir[512];
