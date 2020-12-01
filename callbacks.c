@@ -175,34 +175,6 @@ my_gtk_init()
     snprintf(logfile, sizeof(logfile), "%s/logfile", config_dir);
     logfp = fopen(logfile, "a");
 
-    if (crypto_init(home) < 0)
-    {
-	alert("unable to initialize cryptography system");
-	exit(1);
-    }
-    snprintf(key_file, sizeof(key_file), "%s/.keyfile", config_dir);
-    if (access(key_file, F_OK) < 0)
-    {
-	if (gen_aeskey(&crypto_key) < 0)
-	{
-	    alert("Unable to generate crypto key");
-	    exit(1);
-	}
-	if (store_key(key_file, &crypto_key) < 0)
-	{
-	    alert("error writing to %s: %s", key_file, strerror(errno));
-	    exit(1);
-	}
-    }
-    else
-    {
-	if (load_key(key_file, &crypto_key) < 0)
-	{
-	    alert("error reading %s", key_file, strerror(errno));
-	    exit(1);
-	}
-    }
-
     mylog("Loading entries from %s\n", entries_file);
     num_entries = load_entries(entries_file, entries);
     for (i = 0; i < num_entries; ++i)
