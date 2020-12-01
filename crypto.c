@@ -273,7 +273,8 @@ load_key(char *fname, aes256_key_t *key)
 	return(-1);
 
     line[sizeof(line)-1] = '\0';
-    fgets(line, sizeof(line)-1, fp);
+    if (fgets(line, sizeof(line)-1, fp) == NULL)
+	return(-1);
     linelen = strlen(line);
     line[--linelen] = '\0';
     len = decode((u_int8_t *)line, key->key, linelen, KEYLEN, NULL);
@@ -283,7 +284,9 @@ load_key(char *fname, aes256_key_t *key)
 	return(-1);
     }
 
-    fgets(line, sizeof(line)-1, fp);
+    if (fgets(line, sizeof(line)-1, fp) == NULL)
+	return(-1);
+
     fclose(fp);
     linelen = strlen(line);
     line[--linelen] = '\0';
