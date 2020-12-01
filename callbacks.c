@@ -16,10 +16,8 @@
 #include "crypto.h"
 
 #define	MAX_ARGS	32
-static aes256_key_t	crypto_key;
 static char		config_dir[512];
 static char		entries_file[1024];
-static char		key_file[1024];
 
 FILE			*logfp;
 char			logfile[1024];
