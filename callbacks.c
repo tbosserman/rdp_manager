@@ -436,11 +436,17 @@ on_launch_button_clicked()
 	for (i = 3; i <= 255; ++i)
 	    close(i);
 	snprintf(logfile, sizeof(logfile), "%s/xfreerdp.log", config_dir);
-	fd = open(logfile, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	/*
+	 * It really should be impossible for the open and dup calls to
+	 * fail, but if they do something really bad is going on so we'll
+	 * just give up and exit.
+	 */
+	if ((fd = open(logfile, O_CREAT | O_WRONLY | O_TRUNC, 0644)) < 0)
+	    exit(1);
 	close(1);
 	close(2);
-	dup(fd);
-	dup(fd);
+	if (dup(fd) < 0 || dup(fd) < 0)
+	    exit(1);
 	close(fd);
 	close(0);
 	execvp("xfreerdp", args);
