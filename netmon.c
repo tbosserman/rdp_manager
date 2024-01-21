@@ -35,6 +35,7 @@ default_route(t_info *info)
     FILE	*fp;
     char	line[256];
 
+    /* NOTE: look into using /proc/net/route instead of the "ip" command. */
     if ((fp = popen("/bin/ip -4 -o route show default", "r")) == NULL)
 	return(-1);
     line[sizeof(line)-1] = '\0';
@@ -63,6 +64,7 @@ my_ipaddr(t_info *info)
     FILE	*fp;
     char	cmd[256], line[256], *p;
 
+    /* NOTE: look into using getifaddrs() instead of the "ip" command */
     cmd[sizeof(cmd)-1] = '\0';
     snprintf(cmd, sizeof(cmd)-1, "/bin/ip -4 -br addr show dev %s",
 	info->interface);
