@@ -17,10 +17,13 @@
 
 #define	MAX_ARGS	32
 
+extern gboolean netmon(gpointer user_data);
+
 static aes256_key_t	crypto_key;
 static char		config_dir[512];
 static char		entries_file[1024];
 static char		key_file[1024];
+static pid_t		xfreerdp_pid;
 
 FILE			*logfp;
 char			logfile[1024];
@@ -124,29 +127,31 @@ add_row(char *entry_name)
  ********************            HANDLER             ********************
  ************************************************************************/
 void
-handler(int sig)
+handler(int sig, siginfo_t *siginfo, void *ucontext)
 {
     int		status;
     pid_t	pid;
+
+    mylog("handler: signo=%d   pid=%d\n", siginfo->si_signo, siginfo->si_pid);
+    if (sig == SIGCHLD && siginfo->si_pid != xfreerdp_pid)
+	return;
+
     /*
      * We're not doing much here, just reaping the child process so it
      * doesn't turn into a zombie process.
      */
-    pid = wait(&status);
+    if ((pid = wait(&status)) < 0)
+    {
+	if (errno != ECHILD)
+	    mylog("In signal handler wait() returned %d: %s\n", pid,
+		strerror(errno));
+	return;
+    }
+
     mylog("Child process %d exited with status %d\n", pid, status);
     if (status != 0)
 	alert("xfreerdp exited abnormally.\nLook at xfreerdp.log and "
 	      "logfile in\n%s\nfor clues as to what went wrong.", config_dir);
-}
-
-/************************************************************************
- ********************             NETMON             ********************
- ************************************************************************/
-gboolean
-netmon(gpointer user_data)
-{
-    mylog("netmon was called\n");
-    return(G_SOURCE_CONTINUE);
 }
 
 /************************************************************************
@@ -161,7 +166,8 @@ my_gtk_init()
     struct sigaction	newact, oldact;
 
     memset(&newact, 0, sizeof(newact));
-    newact.sa_handler = handler;
+    newact.sa_flags = SA_SIGINFO;
+    newact.sa_sigaction = handler;
     sigaction(SIGCHLD, &newact, &oldact);
 
     if ((home = getenv("HOME")) == NULL)
@@ -378,7 +384,6 @@ G_MODULE_EXPORT void
 on_launch_button_clicked()
 {
     int			i, fd, len, rownum, fnum;
-    pid_t		pid;
     char		**fields, *gw_user, gw_passwd[1024];
     char		*args[MAX_ARGS], *temp, *p, logfile[1024];
     char		passwd[1024], *encrypted;
@@ -443,7 +448,7 @@ on_launch_button_clicked()
 	    mylog("%s\n", args[i]);
     }
 
-    if ((pid = fork()) == 0)
+    if ((xfreerdp_pid = fork()) == 0)
     {
 	for (i = 3; i <= 255; ++i)
 	    close(i);
@@ -461,7 +466,7 @@ on_launch_button_clicked()
 	    exit(1);
 	close(fd);
 	close(0);
-	execvp("xfreerdp", args);
+	execv("/usr/bin/xfreerdp", args);
 	/* Shouldn't get here unless exec craps out completely */
 	exit(1);
     }
