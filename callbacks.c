@@ -132,7 +132,6 @@ handler(int sig, siginfo_t *siginfo, void *ucontext)
     int		status;
     pid_t	pid;
 
-    mylog("handler: signo=%d   pid=%d\n", siginfo->si_signo, siginfo->si_pid);
     if (sig == SIGCHLD && siginfo->si_pid != xfreerdp_pid)
 	return;
 
@@ -224,6 +223,8 @@ my_gtk_init()
 	add_row(entries[i].fields[ENTRY_NAME]);
     window1 = (GtkWidget *)gtk_builder_get_object(glade_xml, "window1");
     gtk_widget_show_all(window1);
+    /* Call netmon once by to notify user immediately if no internet */
+    (void)netmon(NULL);
 }
 
 /************************************************************************
