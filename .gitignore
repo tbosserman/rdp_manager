@@ -2,5 +2,6 @@
 *~
 rdp_manager
 rdp_manager.arm
+rdp_manager.arm64
 rdp_manager.x86_64
 rdp_xml.h

@@ -3,6 +3,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <netdb.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <linux/if.h>
 #include <gtk/gtk.h>
 #include "ping_dns.h"
 
@@ -22,14 +26,16 @@
 #define route_ok(flags)	(((flags) & ROUTE_OK) != 0)
 #define have_ip(flags)	(((flags) & HAVE_IP) != 0)
 
+#define ADDRLEN		16
+
 extern int	alltrim(char *s);
 extern void	mylog(char *fmt, ...);
 extern void	alert(const char *fmt, ...);
 
 struct s_info {
-    char	interface[16];
-    char	gateway[16];
-    char	ipaddr[16];
+    char	interface[IFNAMSIZ];
+    char	gateway[ADDRLEN];
+    char	ipaddr[ADDRLEN];
     int		flags;
 };
 typedef struct s_info t_info;
@@ -72,30 +78,27 @@ default_route(t_info *info)
 int
 my_ipaddr(t_info *info)
 {
-    FILE	*fp;
-    char	cmd[256], line[256], *p;
+    struct ifaddrs	*ifaddrs, *ifp;
+    struct sockaddr_in	*addrp;
 
-    /* NOTE: look into using getifaddrs() instead of the "ip" command */
-    cmd[sizeof(cmd)-1] = '\0';
-    snprintf(cmd, sizeof(cmd)-1, "/bin/ip -4 -br addr show dev %s",
-	info->interface);
-    if ((fp = popen(cmd, "r")) == NULL)
+    if (getifaddrs(&ifaddrs) < 0)
 	return(-1);
 
-    line[sizeof(line)-1] = '\0';
-    p = fgets(line, sizeof(line)-1, fp);
-    pclose(fp);
-    if (p == NULL || strlen(line) < 2)
-	return(-1);
-    line[strlen(line)-1] = '\0';
-    alltrim(line);
+    addrp = NULL;
+    for (ifp = ifaddrs; ifp != NULL; ifp = ifp->ifa_next)
+    {
+	if (strcmp(ifp->ifa_name, info->interface) != 0)
+	    continue;
+	if (ifp->ifa_addr->sa_family != AF_INET)
+	    continue;
+	addrp = (struct sockaddr_in *)ifp->ifa_addr;
+	break;
+    }
+    if (addrp != NULL)
+	(void)inet_ntop(AF_INET, &addrp->sin_addr, info->ipaddr, ADDRLEN);
 
-    // wlan0            UP             192.168.100.175/24 
-    if ((p = strrchr(line, ' ')) == NULL)
-	return(-1);
-    strncpy(info->ipaddr, p+1, sizeof(info->ipaddr)-1);
-
-    return(0);
+    freeifaddrs(ifaddrs);
+    return(addrp ? 0: -1);
 }
 
 /************************************************************************
