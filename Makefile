@@ -6,7 +6,7 @@ LDFLAGS=-Wl,--export-dynamic
 
 all: rdp_manager
 
-rdp_manager: main.o callbacks.o entries.o crypto.o netmon.o
+rdp_manager: main.o callbacks.o entries.o crypto.o netmon.o ping_dns.o
 	$(CC) -o rdp_manager $^ $(LDFLAGS) $(LDLIBS)
 
 main.o: main.c rdp_xml.h version.h
@@ -17,7 +17,9 @@ entries.o: entries.c rdp_manager.h
 
 crypto.o: crypto.c crypto.h
 
-netmon.o: netmon.c
+netmon.o: netmon.c ping_dns.h
+
+ping_dns.o: ping_dns.c ping_dns.h
 
 rdp_xml.h: rdp_manager.glade
 	./gen_hdr.sh

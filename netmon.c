@@ -4,11 +4,23 @@
 #include <string.h>
 #include <netdb.h>
 #include <gtk/gtk.h>
+#include "ping_dns.h"
 
 #ifndef TRUE
 #define TRUE	1
 #define FALSE	0
 #endif
+
+#define DNS_OK		1
+#define ROUTE_OK	2
+#define HAVE_IP		4
+#define PING_OK		8
+#define ALL_OK		(DNS_OK | ROUTE_OK | HAVE_IP | PING_OK)
+
+#define all_ok(flags)	(((flags) & ALL_OK) == ALL_OK)
+#define dns_ok(flags)	(((flags) & DNS_OK) != 0)
+#define route_ok(flags)	(((flags) & ROUTE_OK) != 0)
+#define have_ip(flags)	(((flags) & HAVE_IP) != 0)
 
 extern int	alltrim(char *s);
 extern void	mylog(char *fmt, ...);
@@ -18,8 +30,7 @@ struct s_info {
     char	interface[16];
     char	gateway[16];
     char	ipaddr[16];
-    int		dns_ok;
-    int		all_ok;
+    int		flags;
 };
 typedef struct s_info t_info;
 
@@ -91,7 +102,7 @@ my_ipaddr(t_info *info)
  ********************           CHECK_DNS            ********************
  ************************************************************************/
 int
-check_dns(t_info *info)
+check_dns(void)
 {
     int			code;
     struct addrinfo	hints, *ai;
@@ -100,7 +111,6 @@ check_dns(t_info *info)
     hints.ai_flags = AI_CANONNAME;
     hints.ai_family = PF_UNSPEC;
     code = getaddrinfo("google.com", NULL, &hints, &ai);
-    info->dns_ok = (code == 0);
     return(code);
 }
 
@@ -110,12 +120,29 @@ check_dns(t_info *info)
 void
 all_tests(t_info *info)
 {
+    int			flags;
+    char		buf[1024];
+    struct servent	svc, *resultp;
+
     memset(info, 0, sizeof(t_info));
     if (default_route(info) == 0)
-	(void)my_ipaddr(info);
-    (void)check_dns(info);
-    info->all_ok = (info->interface[0] != '\0' && info->gateway[0] != '\0' &&
-		    info->ipaddr[0] != '\0' && info->dns_ok);
+    {
+	info->flags |= ROUTE_OK;
+	if (my_ipaddr(info) == 0)
+	    info->flags |= HAVE_IP;
+    }
+    if (check_dns() == 0)
+	info->flags |= DNS_OK;
+
+    flags = (ROUTE_OK | HAVE_IP);
+    if ((info->flags & flags) != flags)
+	return;
+
+    if (getservbyname_r("domain", "udp", &svc, buf, sizeof(buf), &resultp))
+	return;
+
+    if (ping_dns("8.8.8.8", ntohs(svc.s_port)) == SUCCESS)
+	info->flags |= PING_OK;
 }
 
 /************************************************************************
@@ -124,7 +151,7 @@ all_tests(t_info *info)
 gboolean
 netmon(gpointer user_data)
 {
-    int		cur, prev, net_ok;
+    int		cur, prev;
     t_info	*curp, *prevp;
 
     prev = cur_info_index;
@@ -134,9 +161,9 @@ netmon(gpointer user_data)
     cur_info_index = cur;
     all_tests(curp);
 
-    if (curp->all_ok)
+    if (all_ok(curp->flags))
     {
-	if (prevp && !prevp->all_ok)
+	if (prevp && !all_ok(prevp->flags))
 	{
 	    mylog("Networking OK\n");
 	    alert("Internet connectivity has been restored");
@@ -144,34 +171,26 @@ netmon(gpointer user_data)
 	return(G_SOURCE_CONTINUE);
     }
 
-    net_ok = TRUE;
-    if (curp->gateway[0] == '\0')
+    if (!route_ok(curp->flags))
     {
-	if (prevp == NULL || strcmp(curp->gateway, prevp->gateway))
-	{
+	if (prevp == NULL || route_ok(prevp->flags))
 	   mylog("No default route\n");
-	   net_ok = FALSE;
-	}
     }
-    else if (curp->ipaddr[0] == '\0')
+    else if (!have_ip(curp->flags))
     {
-	if (prevp == NULL || strcmp(curp->ipaddr, prevp->ipaddr))
-	{
+	if (prevp == NULL || have_ip(prevp->flags))
 	    mylog("No IP address assigned\n");
-	    net_ok = FALSE;
-	}
     }
-    if (!curp->dns_ok)
-	if (prevp == NULL || curp->dns_ok != prevp->dns_ok)
-	{
+    if (!dns_ok(curp->flags))
+    {
+	if (prevp == NULL || dns_ok(prevp->flags))
 	    mylog("DNS not working\n");
-	    net_ok = FALSE;
-	}
+    }
 
-    if (!net_ok)
+    if (!all_ok(curp->flags) && (!prevp || all_ok(prevp->flags)))
 	alert("You don't appear to be connected to the internet.\n"
 	      "Make sure you are either connected to WiFi or your\n"
-	      "ethernet cable is plugged in.");
+	      "ethernet cable is plugged in.  Flags=%08X (hex)", curp->flags);
 
     return(G_SOURCE_CONTINUE);
 }
