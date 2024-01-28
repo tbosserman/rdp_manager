@@ -50,25 +50,32 @@ int
 default_route(t_info *info)
 {
     FILE	*fp;
-    char	line[256];
+    int		err, dest, gw;
+    char	line[256], iface[IFNAMSIZ];
+    struct in_addr	addr;
 
-    /* NOTE: look into using /proc/net/route instead of the "ip" command. */
-    if ((fp = popen("/bin/ip -4 -o route show default", "r")) == NULL)
+    info->interface[0] = info->gateway[0] = '\0';
+
+    if ((fp = fopen("/proc/net/route", "r")) == NULL)
 	return(-1);
-    line[sizeof(line)-1] = '\0';
-    if (fgets(line, sizeof(line)-1, fp) == NULL || strlen(line) == 0)
+
+    while (fgets(line, sizeof(line), fp) != NULL)
     {
-	pclose(fp);
-	return(-1);
+	if (line[0] == 'I') /* skip the header line */
+	    continue;
+	sscanf(line, "%s %X %X ", iface, &dest, &gw);
+	if (dest == 0)
+	    break;
     }
-    // default via 192.168.100.1 dev eth0 proto dhcp src 192.168.100.174 metric 100
-    (void)strtok(line, " \t"); /* the word "default" */
-    (void)strtok(NULL, " \t"); /* the word "via" */
-    strncpy(info->gateway, strtok(NULL, " \t"), sizeof(info->gateway)-1);
-    (void)strtok(NULL, " \t"); /* the word "dev" */
-    strncpy(info->interface, strtok(NULL, " \t"), sizeof(info->interface)-1);
+    err = ferror(fp);
+    fclose(fp);
+    if (err || dest != 0 || gw == 0)
+	return(-1);
 
-    pclose(fp);
+    addr.s_addr = gw;
+    inet_ntop(AF_INET, &addr, info->gateway, ADDRLEN);
+    strncpy(info->interface, iface, ADDRLEN);
+
     return(0);
 }
 
