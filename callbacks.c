@@ -86,20 +86,18 @@ on_window1_delete_event                (GtkWidget       *widget,
 void
 alert(const char *fmt, ...)
 {
-  va_list	ap;
-  char		temp[512];
-  GtkWidget	*dialog, *window1;
+    va_list		ap;
+    char		temp[1024];
+    GtkMessageDialog	*dialog;
 
-  temp[sizeof(temp)-1] = '\0';
-  va_start(ap, fmt);
-  vsnprintf(temp, sizeof(temp)-1, fmt, ap);
-  va_end(ap);
-  window1 = (GtkWidget *)gtk_builder_get_object(glade_xml, "window1");
-  dialog = gtk_message_dialog_new(GTK_WINDOW(window1),
-    GTK_DIALOG_DESTROY_WITH_PARENT,
-    GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE, "%s", temp);
-  gtk_dialog_run(GTK_DIALOG(dialog));
-  gtk_widget_destroy(dialog);
+    temp[sizeof(temp)-1] = '\0';
+    va_start(ap, fmt);
+    vsnprintf(temp, sizeof(temp)-1, fmt, ap);
+    va_end(ap);
+    dialog = (GtkMessageDialog *)gtk_builder_get_object(glade_xml, "alert_window");
+    gtk_message_dialog_format_secondary_text(dialog, "%s", temp);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_hide(GTK_WIDGET(dialog));
 }
 
 /************************************************************************

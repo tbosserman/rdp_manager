@@ -25,6 +25,7 @@
 #define dns_ok(flags)	(((flags) & DNS_OK) != 0)
 #define route_ok(flags)	(((flags) & ROUTE_OK) != 0)
 #define have_ip(flags)	(((flags) & HAVE_IP) != 0)
+#define ping_ok(flags)	(((flags) & PING_OK) != 0)
 
 #define ADDRLEN		16
 
@@ -85,16 +86,20 @@ default_route(t_info *info)
 int
 my_ipaddr(t_info *info)
 {
+    int			have_route;
     struct ifaddrs	*ifaddrs, *ifp;
     struct sockaddr_in	*addrp;
 
     if (getifaddrs(&ifaddrs) < 0)
 	return(-1);
 
+    have_route = route_ok(info->flags);
     addrp = NULL;
     for (ifp = ifaddrs; ifp != NULL; ifp = ifp->ifa_next)
     {
-	if (strcmp(ifp->ifa_name, info->interface) != 0)
+	if (have_route && strcmp(ifp->ifa_name, info->interface) != 0)
+	    continue;
+	if (strncmp(ifp->ifa_name, "lo", 2) == 0)
 	    continue;
 	if (ifp->ifa_addr->sa_family != AF_INET)
 	    continue;
@@ -121,6 +126,8 @@ check_dns(void)
     hints.ai_flags = AI_CANONNAME;
     hints.ai_family = PF_UNSPEC;
     code = getaddrinfo("google.com", NULL, &hints, &ai);
+    if (code == 0)
+	freeaddrinfo(ai);
     return(code);
 }
 
@@ -136,11 +143,9 @@ all_tests(t_info *info)
 
     memset(info, 0, sizeof(t_info));
     if (default_route(info) == 0)
-    {
 	info->flags |= ROUTE_OK;
-	if (my_ipaddr(info) == 0)
-	    info->flags |= HAVE_IP;
-    }
+    if (my_ipaddr(info) == 0)
+	info->flags |= HAVE_IP;
     if (check_dns() == 0)
 	info->flags |= DNS_OK;
 
@@ -161,7 +166,8 @@ all_tests(t_info *info)
 gboolean
 netmon(gpointer user_data)
 {
-    int		cur, prev;
+    char	msg[1024];
+    int		cur, prev, flags;
     t_info	*curp, *prevp;
 
     prev = cur_info_index;
@@ -198,9 +204,21 @@ netmon(gpointer user_data)
     }
 
     if (!all_ok(curp->flags) && (!prevp || all_ok(prevp->flags)))
-	alert("You don't appear to be connected to the internet.\n"
-	      "Make sure you are either connected to WiFi or your\n"
-	      "ethernet cable is plugged in.  Flags=%08X (hex)", curp->flags);
+    {
+	flags = curp->flags;
+	strcpy(msg, "You don't appear to be connected to the internet.\n"
+	    "Make sure you are either connected to WiFi or your\n"
+	    "ethernet cable is plugged in.  Details:\n");
+	if (!have_ip(flags))
+	    strcat(msg, "\n· No IP address assigned");
+	if (!route_ok(flags))
+	    strcat(msg, "\n· No default route");
+	if (have_ip(flags) && !dns_ok(flags))
+	    strcat(msg, "\n· DNS name resolution not working");
+	if ((have_ip(flags) && route_ok(flags)) && !ping_ok(flags))
+	    strcat(msg, "\n· Unable to ping google");
+	alert(msg);
+    }
 
     return(G_SOURCE_CONTINUE);
 }
