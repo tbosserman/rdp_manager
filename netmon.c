@@ -145,9 +145,11 @@ all_tests(t_info *info)
     if (default_route(info) == 0)
 	info->flags |= ROUTE_OK;
     if (my_ipaddr(info) == 0)
+    {
 	info->flags |= HAVE_IP;
-    if (check_dns() == 0)
-	info->flags |= DNS_OK;
+	if (check_dns() == 0)
+	    info->flags |= DNS_OK;
+    }
 
     flags = (ROUTE_OK | HAVE_IP);
     if ((info->flags & flags) != flags)
