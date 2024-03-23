@@ -323,21 +323,22 @@ on_edit_button_clicked()
     row = gtk_list_box_get_selected_row(box);
     if (row == NULL)
 	return;
+    passwd[0] = gw_passwd[0] = '\0';
     rownum = gtk_list_box_row_get_index(row);
     fields = entries[rownum].fields;
-    encrypted = (u_int8_t *)fields[PASSWORD];
-    len = decode(encrypted, (u_int8_t *)passwd, strlen((char *)encrypted),
-	sizeof(passwd)-1, &crypto_key);
-    passwd[len] = '\0';
-    if (fields[GW_PASSWORD][0] != '\0')
+    if ((encrypted = (u_int8_t *)fields[PASSWORD]) != NULL)
+    {
+	len = decode(encrypted, (u_int8_t *)passwd, strlen((char *)encrypted),
+	    sizeof(passwd)-1, &crypto_key);
+	passwd[len] = '\0';
+    }
+    if (fields[GW_PASSWORD] != NULL && fields[GW_PASSWORD][0] != '\0')
     {
 	encrypted = (u_int8_t *)fields[GW_PASSWORD];
 	len = decode(encrypted, (u_int8_t *)gw_passwd,
 	    strlen((char *)encrypted), sizeof(gw_passwd)-1, &crypto_key);
 	gw_passwd[len] = '\0';
     }
-    else
-	gw_passwd[0] = '\0';
 
     /* Copy data from the entries table into the GUI */
     for (i = 0; i < NUM_FIELDS; ++i)
@@ -395,10 +396,13 @@ on_launch_button_clicked()
 	return;
     rownum = gtk_list_box_row_get_index(row);
     fields = entries[rownum].fields;
-    encrypted = fields[PASSWORD];
-    len = decode((u_int8_t *)encrypted, (u_int8_t *)passwd, strlen(encrypted),
-	sizeof(passwd)-1, &crypto_key);
-    passwd[len] = '\0';
+    passwd[0] = '\0';
+    if ((encrypted = fields[PASSWORD]) != NULL)
+    {
+	len = decode((u_int8_t *)encrypted, (u_int8_t *)passwd,
+	    strlen(encrypted), sizeof(passwd)-1, &crypto_key);
+	passwd[len] = '\0';
+    }
 
     if ((temp = fields[DISPLAY_SIZE]) == NULL)
 	temp = DEFAULT_SIZE;
