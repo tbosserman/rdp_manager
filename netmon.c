@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <netdb.h>
+#include <glob.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -19,13 +20,15 @@
 #define ROUTE_OK	2
 #define HAVE_IP		4
 #define PING_OK		8
-#define ALL_OK		(DNS_OK | ROUTE_OK | HAVE_IP | PING_OK)
+#define NOIP2_OK	16
+#define ALL_OK		(DNS_OK | ROUTE_OK | HAVE_IP | PING_OK | NOIP2_OK)
 
 #define all_ok(flags)	(((flags) & ALL_OK) == ALL_OK)
 #define dns_ok(flags)	(((flags) & DNS_OK) != 0)
 #define route_ok(flags)	(((flags) & ROUTE_OK) != 0)
 #define have_ip(flags)	(((flags) & HAVE_IP) != 0)
 #define ping_ok(flags)	(((flags) & PING_OK) != 0)
+#define noip2_ok(flags)	(((flags) & NOIP2_OK) != 0)
 
 #define ADDRLEN		16
 
@@ -132,6 +135,43 @@ check_dns(void)
 }
 
 /************************************************************************
+ ********************          CHECK_NOIP2           ********************
+ ************************************************************************/
+int
+check_noip2()
+{
+    glob_t	entries;
+    int		i, code;
+    char	*p, *fname, cmd[256];
+    FILE	*fp;
+
+    if ((code = glob("/proc/[0-9]*[0-9]/comm", 0, NULL, &entries)) != 0)
+	return(-1);
+
+    code = -1;
+    cmd[sizeof(cmd)-1] = '\0';
+    for (i = 0; i < entries.gl_pathc; ++i)
+    {
+	fname = entries.gl_pathv[i];
+	if ((fp = fopen(fname, "r")) == NULL)
+	    break;
+	p = fgets(cmd, sizeof(cmd)-1, fp);
+	fclose(fp);
+	if (p == NULL)
+	    break;
+	cmd[strlen(cmd)-1] = '\0';
+	if (strcmp(cmd, "noip2") == 0)
+	{
+	    code = 0;
+	    break;
+	}
+    }
+
+    globfree(&entries);
+    return(code);
+}
+
+/************************************************************************
  ********************           ALL_TESTS            ********************
  ************************************************************************/
 void
@@ -142,6 +182,8 @@ all_tests(t_info *info)
     struct servent	svc, *resultp;
 
     memset(info, 0, sizeof(t_info));
+    if (check_noip2() == 0)
+	info->flags |= NOIP2_OK;
     if (default_route(info) == 0)
 	info->flags |= ROUTE_OK;
     if (my_ipaddr(info) == 0)
@@ -204,6 +246,11 @@ netmon(gpointer user_data)
 	if (prevp == NULL || dns_ok(prevp->flags))
 	    mylog("DNS not working\n");
     }
+    if (!noip2_ok(curp->flags))
+    {
+	if (prevp == NULL || noip2_ok(prevp->flags))
+	    mylog("Dynamic update client noip2 not running\n");
+    }
 
     if (!all_ok(curp->flags) && (!prevp || all_ok(prevp->flags)))
     {
@@ -211,6 +258,8 @@ netmon(gpointer user_data)
 	strcpy(msg, "You don't appear to be connected to the internet.\n"
 	    "Make sure you are either connected to WiFi or your\n"
 	    "ethernet cable is plugged in.  Details:\n");
+	if (!noip2_ok(flags))
+	    strcat(msg, "\n  Dynamic update client noip2 not running");
 	if (!have_ip(flags))
 	    strcat(msg, "\n· No IP address assigned");
 	if (!route_ok(flags))
