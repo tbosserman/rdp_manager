@@ -469,7 +469,7 @@ on_launch_button_clicked()
 	    exit(1);
 	close(fd);
 	close(0);
-	execv("/usr/bin/xfreerdp", args);
+	execv(XFREERDP, args);
 	/* Shouldn't get here unless exec craps out completely */
 	exit(1);
     }
