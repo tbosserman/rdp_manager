@@ -17,6 +17,7 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
 
     if ((fp = fopen(entries_file, "w")) == NULL)
 	return(-1);
+    (void)chmod(entries_file, 0600);
 
     for (i = 0; i < num_entries; ++i)
     {
