@@ -1,0 +1,8 @@
+DEBIAN/postinst
+DEBIAN/prerm
+etc/NetworkManager/dispatcher.d/60-duc
+usr/local/bin/auto-upgrade.sh
+usr/local/bin/noip2
+usr/local/bin/rdp_manager
+usr/local/share/images/ITS-logo.png
+usr/share/applications/rdp-manager.desktop

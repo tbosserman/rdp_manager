@@ -1,0 +1,6 @@
+#!/bin/sh
+
+TEMP=$(mktemp)
+crontab -l -u root | grep -v auto-upgrade > $TEMP
+crontab -u root $TEMP
+rm -f $TEMP

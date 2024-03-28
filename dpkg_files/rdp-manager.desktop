@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=RDP Manager
+Comment=Manage XFreeRDp connections
+Exec=/usr/local/bin/rdp_manager
+Icon=/usr/local/share/images/ITS-logo.png
+Terminal=false
+StartupNotify=true
+Keywords=internet
+Categories=GNOME;GTK;Network
