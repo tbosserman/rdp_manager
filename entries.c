@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "rdp_manager.h"
 
 extern void mylog(char *fmt, ...);
@@ -17,7 +18,7 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
 
     if ((fp = fopen(entries_file, "w")) == NULL)
 	return(-1);
-    (void)chmod(entries_file, 0600);
+    (void)fchmod(fileno(fp), 0600);
 
     for (i = 0; i < num_entries; ++i)
     {
