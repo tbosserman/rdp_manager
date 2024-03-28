@@ -4,4 +4,9 @@ rdp_manager
 rdp_manager.arm
 rdp_manager.arm64
 rdp_manager.x86_64
+rdp_manager.amd64
 rdp_xml.h
+rdp_manager_1.4-3_amd64/
+rdp_manager_1.4-3_amd64.deb
+rdp_manager_1.4-3_arm64/
+rdp_manager_1.4-3_arm64.deb
