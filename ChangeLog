@@ -1,1 +1,2 @@
 2024/03/28 - version 1.5: chmod(entries.dat, 0600)
+2024/04/02 - version 1.6: Tell user to check phone upon xfreerdp launch
