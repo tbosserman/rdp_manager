@@ -435,6 +435,11 @@ on_launch_button_clicked()
 	args[fnum++] = NULL;
     }
 
+    /*
+     * Log the command we're about to execute. IMPORTANT: look for
+     * arguments which have passwords in them and replace the password
+     * with asterisks before logging.
+     */
     for (i = 0; args[i] != NULL; ++i)
     {
 	if (memcmp(args[i], "/gp:", 4) == 0 ||
@@ -473,6 +478,8 @@ on_launch_button_clicked()
 	/* Shouldn't get here unless exec craps out completely */
 	exit(1);
     }
+
+    alert("Please check your phone for a Duo push authentication request.");
 
     for (i = 0; args[i] != NULL; ++i)
 	free(args[i]);
