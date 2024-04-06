@@ -1,14 +1,13 @@
 #define ENTRY_NAME	0
 #define HOST		1
 #define PORT		2
-#define USERNAME	3
-#define PASSWORD	4
+#define DOMAIN		3
+#define USERNAME	4
 #define DISPLAY_SIZE	5
 #define GATEWAY		6
 #define GW_PORT		7
 #define GW_USER		8
-#define GW_PASSWORD	9
-#define NUM_FIELDS	10
+#define NUM_FIELDS	9
 #define MAX_ENTRIES	250
 #define ADD_MODE	0
 #define EDIT_MODE	1

@@ -18,6 +18,7 @@
 #define	MAX_ARGS	32
 
 extern gboolean netmon(gpointer user_data);
+extern int resolve_hostname(char *);
 
 static aes256_key_t	crypto_key;
 static char		config_dir[512];
@@ -32,9 +33,9 @@ int			num_entries;
 int			mode;
 
 char			*widget_names[] = {
-    "entry_name",	"host",		"port",		"username",
-    "password",		"display_size",	"gw_host",	"gw_port",
-    "gw_username",	"gw_password"
+    "entry_name",	"host",		"port",		"domain",
+    "username",		"display_size",	"gw_host",	"gw_port",
+    "gw_username"
 };
 
 extern GtkBuilder	*glade_xml;
@@ -309,9 +310,8 @@ on_add_button_clicked()
 G_MODULE_EXPORT void
 on_edit_button_clicked()
 {
-    int			i, len, rownum;
+    int			i, rownum;
     char		**fields;
-    u_int8_t		*encrypted, passwd[1024], gw_passwd[128];
     GtkWidget		*win;
     GtkListBox		*box;
     GtkListBoxRow	*row;
@@ -323,40 +323,14 @@ on_edit_button_clicked()
     row = gtk_list_box_get_selected_row(box);
     if (row == NULL)
 	return;
-    passwd[0] = gw_passwd[0] = '\0';
     rownum = gtk_list_box_row_get_index(row);
     fields = entries[rownum].fields;
-    if ((encrypted = (u_int8_t *)fields[PASSWORD]) != NULL)
-    {
-	len = decode(encrypted, (u_int8_t *)passwd, strlen((char *)encrypted),
-	    sizeof(passwd)-1, &crypto_key);
-	passwd[len] = '\0';
-    }
-    if (fields[GW_PASSWORD] != NULL && fields[GW_PASSWORD][0] != '\0')
-    {
-	encrypted = (u_int8_t *)fields[GW_PASSWORD];
-	len = decode(encrypted, (u_int8_t *)gw_passwd,
-	    strlen((char *)encrypted), sizeof(gw_passwd)-1, &crypto_key);
-	gw_passwd[len] = '\0';
-    }
 
     /* Copy data from the entries table into the GUI */
     for (i = 0; i < NUM_FIELDS; ++i)
     {
 	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	switch(i)
-	{
-	    case PASSWORD:
-		gtk_entry_set_text(widget, (const char *)passwd);
-		break;
-
-	    case GW_PASSWORD:
-		gtk_entry_set_text(widget, (const char *)gw_passwd);
-		break;
-
-	    default:
-		gtk_entry_set_text(widget, fields[i]);
-	}
+	gtk_entry_set_text(widget, fields[i]);
     }
 
     win = (GtkWidget *)gtk_builder_get_object(glade_xml, "add_window");
@@ -378,17 +352,17 @@ gen_vector(char *fmt, ...)
 }
 
 /************************************************************************
- ********************   ON_LAUNCH_BUTTON_CLICKED     ********************
+ ********************             LAUNCH             ********************
  ************************************************************************/
-G_MODULE_EXPORT void
-on_launch_button_clicked()
+void
+launch()
 {
-    int			i, fd, len, rownum, fnum;
-    char		**fields, *gw_user, gw_passwd[1024];
+    int			i, fd, rownum, fnum;
+    char		**fields, *user, *passwd, *gw_user, *gw_passwd;
     char		*args[MAX_ARGS], *temp, *p, logfile[1024];
-    char		passwd[1024], *encrypted;
     GtkListBox		*box;
     GtkListBoxRow	*row;
+    GtkEntry		*pwd_widget, *gw_pwd_widget;
 
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
@@ -396,41 +370,37 @@ on_launch_button_clicked()
 	return;
     rownum = gtk_list_box_row_get_index(row);
     fields = entries[rownum].fields;
-    passwd[0] = '\0';
-    if ((encrypted = fields[PASSWORD]) != NULL)
-    {
-	len = decode((u_int8_t *)encrypted, (u_int8_t *)passwd,
-	    strlen(encrypted), sizeof(passwd)-1, &crypto_key);
-	passwd[len] = '\0';
-    }
 
     if ((temp = fields[DISPLAY_SIZE]) == NULL)
 	temp = DEFAULT_SIZE;
+
+    // Extract the password(s) from the password window.
+    pwd_widget = (GtkEntry *)gtk_builder_get_object(glade_xml, "passwd");
+    gw_pwd_widget = (GtkEntry *)gtk_builder_get_object(glade_xml, "gw_passwd");
+    passwd = (char *)gtk_entry_get_text(pwd_widget);
+
+    // Build up the argument list to be passed to xfreerdp
     fnum = 0;
+    user = fields[USERNAME];
     args[fnum++] = gen_vector("xfreerdp");
     args[fnum++] = gen_vector("/cert-ignore");
     args[fnum++] = gen_vector("/size:%s", temp);
-    args[fnum++] = gen_vector("/u:%s", fields[USERNAME]);
+    args[fnum++] = gen_vector("/u:%s@%s", user, fields[DOMAIN]);
+    // We need to display a new window to prompt for a password.
     args[fnum++] = gen_vector("/p:%s", passwd);
     args[fnum++] = gen_vector("/v:%s:%s", fields[HOST], fields[PORT]);
     args[fnum] = NULL;
     
     if (fields[GATEWAY][0] != '\0')
     {
+	gw_passwd = (char *)gtk_entry_get_text(gw_pwd_widget);
 	gw_user = fields[GW_USER];
 	if (gw_user[0] == '\0')
-	    gw_user = fields[USERNAME];
-	encrypted = fields[GW_PASSWORD];
-	if (*encrypted == '\0')
-	    strcpy(gw_passwd, passwd);
-	else
-	{
-	    len = decode((u_int8_t *)encrypted, (u_int8_t *)gw_passwd,
-		strlen(encrypted), sizeof(gw_passwd)-1, &crypto_key);
-	    gw_passwd[len] = '\0';
-	}
+	    gw_user = user;
+	if (gw_passwd[0] == '\0' || strcmp(user, gw_user) == 0)
+	    gw_passwd = passwd;
 	args[fnum++] = gen_vector("/g:%s:%s", fields[GATEWAY], fields[GW_PORT]);
-	args[fnum++] = gen_vector("/gu:%s", gw_user);
+	args[fnum++] = gen_vector("/gu:%s@%s", gw_user, fields[DOMAIN]);
 	args[fnum++] = gen_vector("/gp:%s", gw_passwd);
 	args[fnum++] = NULL;
     }
@@ -486,6 +456,79 @@ on_launch_button_clicked()
 }
 
 /************************************************************************
+ ********************      ON_PASSWD_OK_CLICKED      ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_passwd_ok_clicked()
+{
+    GtkWidget		*pwdwin;
+
+    pwdwin = (GtkWidget *)gtk_builder_get_object(glade_xml, "passwd_window");
+    gtk_widget_hide(pwdwin);
+    launch();
+}
+
+/************************************************************************
+ ********************    ON_PASSWD_CANCEL_CLICKED    ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_passwd_cancel_clicked()
+{
+    GtkWidget		*pwdwin;
+
+    pwdwin = (GtkWidget *)gtk_builder_get_object(glade_xml, "passwd_window");
+    gtk_widget_hide(pwdwin);
+}
+
+/************************************************************************
+ ********************   ON_LAUNCH_BUTTON_CLICKED     ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_launch_button_clicked()
+{
+    int			rownum;
+    char		**fields, *gateway, *user, *gw_user, temp[1024];
+    GtkWidget		*pwdwin, *passwd_text, *gw_passwd, *gw_passwd_text;
+    GtkListBox		*box;
+    GtkListBoxRow	*row;
+
+    box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
+    row = gtk_list_box_get_selected_row(box);
+    if (row == NULL)
+	return;
+    rownum = gtk_list_box_row_get_index(row);
+    fields = entries[rownum].fields;
+
+    pwdwin = (GtkWidget *)gtk_builder_get_object(glade_xml, "passwd_window");
+    passwd_text = (GtkWidget *)gtk_builder_get_object(glade_xml, "passwd_text");
+    gw_passwd_text = (GtkWidget *)gtk_builder_get_object(glade_xml, "gw_passwd_text");
+    gw_passwd = (GtkWidget *)gtk_builder_get_object(glade_xml, "gw_passwd");
+
+    gateway = fields[GATEWAY];
+    user = fields[USERNAME];
+    gw_user = fields[GW_USER];
+    snprintf(temp, sizeof(temp), "Enter password for %s:  ", user);
+    gtk_label_set_text((GtkLabel *)passwd_text, temp);
+
+    // See if gw_username is set or is different from username.
+    // Hide the gw_password prompt fields if same or not set.
+    if (gateway[0] == '\0' || gw_user[0] == '\0' || strcmp(user, gw_user) == 0)
+    {
+	gtk_widget_hide(gw_passwd_text);
+	gtk_widget_hide(gw_passwd);
+    }
+    else
+    {
+	snprintf(temp, sizeof(temp), "Enter password for %s:  ", gw_user);
+	gtk_label_set_text((GtkLabel *)gw_passwd_text, temp);
+	gtk_widget_show(gw_passwd_text);
+	gtk_widget_show(gw_passwd);
+    }
+
+    gtk_widget_show(pwdwin);
+}
+
+/************************************************************************
  ********************    ON_CLEAR_BUTTON_CLICKED     ********************
  ************************************************************************/
 G_MODULE_EXPORT void
@@ -510,24 +553,63 @@ on_cancel_button_clicked()
  ********************          CHECK_ENTRY           ********************
  ************************************************************************/
 int
-check_entry(entry_t *entry)
+check_entry(char *fields[])
 {
-    if (entry->fields[ENTRY_NAME][0] == '\0')
+    int		errcount;
+    char	temp[256], msg[2048], *host, *gw_host;
+
+    errcount = 0;
+    strcpy(msg, "Please fix the following errors:\n");
+    host = fields[HOST];
+    gw_host = fields[GATEWAY];
+
+    if (fields[ENTRY_NAME][0] == '\0')
     {
-	alert("Entry Name must not be blank");
-	return(-1);
+	strcat(msg, "\n· Entry Name must not be blank");
+	errcount++;
     }
-    if (entry->fields[USERNAME][0] == '\0')
+    if (fields[USERNAME][0] == '\0')
     {
-	alert("User name must not be blank");
-	return(-1);
+	strcat(msg, "\n· User name must not be blank");
+	errcount++;
     }
-    if (entry->fields[HOST][0] == '\0')
+    if (fields[DOMAIN][0] == '\0')
     {
-	alert("Host name must not be blank");
-	return(-1);
+	strcat(msg, "\n· Domain name must not be blank");
+	errcount++;
     }
-    return(0);
+    if (host[0] == '\0')
+    {
+	strcat(msg, "\n· Host name must not be blank");
+	errcount++;
+    }
+
+    // Do a little hostname verification via DNS
+    if (gw_host[0] != '\0')
+    {
+	if (resolve_hostname(gw_host) != 0)
+	{
+	    snprintf(temp, sizeof(temp),
+		"\n· Unable to resolve host %s", gw_host);
+	    strcat(msg, temp);
+	    errcount++;
+	}
+    }
+    else
+    {
+	if (resolve_hostname(host) != 0)
+	{
+	    snprintf(temp, sizeof(temp),
+		"\n· Unable to resolve host %s", host);
+	    strcat(msg, temp);
+	    errcount++;
+	}
+    }
+
+    if (errcount > 0)
+	alert(msg);
+
+    return(errcount);
 }
 
 /************************************************************************
@@ -536,11 +618,10 @@ check_entry(entry_t *entry)
 int
 add_entry()
 {
-    int			i, len;
-    u_int8_t		*plain, encrypted[1024];
+    int			i;
+    char		*textp;
     entry_t		*entry;
     GtkEntry		*widget;
-    const gchar		*textp;
 
     if (num_entries+1 >= MAX_ENTRIES)
     {
@@ -552,25 +633,14 @@ add_entry()
     for (i = 0; i < NUM_FIELDS; ++i)
     {
 	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	textp = gtk_entry_get_text(widget);
-	plain = (u_int8_t *)strdup(textp);
-	alltrim((char *)plain);
-	if (*plain != '\0' && (i == PASSWORD || i == GW_PASSWORD))
-	{
-	    len = encode((u_int8_t *)textp, encrypted, strlen(textp),
-		sizeof(encrypted)-1, &crypto_key);
-	    encrypted[len] = '\0';
-	    textp = strdup((char *)encrypted);
-	    free(plain);
-	}
-	else
-	    textp = (char *)plain;
-
-	entry->fields[i] = (char *)textp;
+	textp = strdup((char *)gtk_entry_get_text(widget));
+	alltrim(textp);
+	entry->fields[i] = textp;
     }
 
-    if (check_entry(entry) < 0)
+    if (check_entry(entry->fields) != 0)
     {
+	--num_entries;
 	for (i = 0; i < NUM_FIELDS; ++i)
 	    free(entry->fields[i]);
 	return(-1);
@@ -587,9 +657,8 @@ add_entry()
 int
 update_entry()
 {
-    int			i, len, rownum;
-    char		**fields;
-    u_int8_t		encrypted[1024];
+    int			i, rownum;
+    char		*fields[NUM_FIELDS];
     const gchar		*textp;
     GtkListBox		*box;
     GtkListBoxRow	*row;
@@ -601,38 +670,32 @@ update_entry()
     row = gtk_list_box_get_selected_row(box);
     rownum = gtk_list_box_row_get_index(row);
 
-    if (check_entry(&entries[rownum]) < 0)
+    for (i = 0; i < NUM_FIELDS; ++i)
+    {
+	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
+	textp = gtk_entry_get_text(widget);
+	fields[i] = strdup(textp);
+	alltrim(fields[i]);
+    }
+
+    if (check_entry(fields) != 0)
+    {
+	for (i = 0; i < NUM_FIELDS; ++i)
+	    free(fields[i]);
 	return(-1);
-    fields = entries[rownum].fields;
+    }
 
     for (i = 0; i < NUM_FIELDS; ++i)
     {
-	free(fields[i]);
-	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	textp = gtk_entry_get_text(widget);
-	if (*textp != '\0' && (i == PASSWORD || i == GW_PASSWORD))
-	{
-	    len = encode((u_int8_t *)textp, encrypted, strlen(textp),
-		sizeof(encrypted)-1, &crypto_key);
-	    encrypted[len] = '\0';
-	    fields[i] = strdup((char *)encrypted);
-	}
-	else
-	{
-	    fields[i] = strdup(textp);
-	    alltrim(fields[i]);
-	}
-	if (i == ENTRY_NAME)
-	{
-	    /*
-	     * Update the label for this entry in the main window.
-	     * I promise that each row only has one child!
-	     */
-	    child = gtk_container_get_children(GTK_CONTAINER(row));
-	    label = GTK_LABEL(child->data);
-	    gtk_label_set_text(label, textp);
-	}
+	free(entries[rownum].fields[i]);
+	entries[rownum].fields[i] = fields[i];
     }
+
+     // Update the label for this entry in the main window.
+     // I promise that each row only has one child!
+    child = gtk_container_get_children(GTK_CONTAINER(row));
+    label = GTK_LABEL(child->data);
+    gtk_label_set_text(label, fields[ENTRY_NAME]);
 
     return(0);
 }

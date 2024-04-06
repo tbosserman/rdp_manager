@@ -117,10 +117,10 @@ my_ipaddr(t_info *info)
 }
 
 /************************************************************************
- ********************           CHECK_DNS            ********************
+ ********************        RESOLVE_HOSTNAME        ********************
  ************************************************************************/
 int
-check_dns(void)
+resolve_hostname(char *host)
 {
     int			code;
     struct addrinfo	hints, *ai;
@@ -128,10 +128,19 @@ check_dns(void)
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_CANONNAME;
     hints.ai_family = PF_UNSPEC;
-    code = getaddrinfo("google.com", NULL, &hints, &ai);
+    code = getaddrinfo(host, NULL, &hints, &ai);
     if (code == 0)
 	freeaddrinfo(ai);
     return(code);
+}
+
+/************************************************************************
+ ********************           CHECK_DNS            ********************
+ ************************************************************************/
+int
+check_dns(void)
+{
+    return(resolve_hostname("google.com"));
 }
 
 /************************************************************************
@@ -259,7 +268,7 @@ netmon(gpointer user_data)
 	    "Make sure you are either connected to WiFi or your\n"
 	    "ethernet cable is plugged in.  Details:\n");
 	if (!noip2_ok(flags))
-	    strcat(msg, "\n  Dynamic update client noip2 not running");
+	    strcat(msg, "\n· Dynamic update client noip2 not running");
 	if (!have_ip(flags))
 	    strcat(msg, "\n· No IP address assigned");
 	if (!route_ok(flags))

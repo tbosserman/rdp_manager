@@ -1,2 +1,9 @@
 2024/03/28 - version 1.5: chmod(entries.dat, 0600)
 2024/04/02 - version 1.6: Tell user to check phone upon xfreerdp launch
+2024/04/06 - version 2.0: Several changes
+    1. Passwords no longer stored in entries.dat file.
+    2. When you click "launch" it prompts for password.
+    3. When you add or update an entry it does DNS checks on the hostname
+       or gateway hostname to make sure they will resolve.
+    4. When adding or updating an entry the alert window now tells you
+       everything you got wrong instead of only telling you the first one.
