@@ -489,6 +489,8 @@ on_launch_button_clicked()
     int			rownum;
     char		**fields, *gateway, *user, *gw_user, temp[1024];
     GtkWidget		*pwdwin, *passwd_text, *gw_passwd, *gw_passwd_text;
+    GtkEntry		*pwd_entry, *gw_pwd_entry;
+    GtkEntryBuffer	*buffer, *gw_buffer;
     GtkListBox		*box;
     GtkListBoxRow	*row;
 
@@ -500,6 +502,10 @@ on_launch_button_clicked()
     fields = entries[rownum].fields;
 
     pwdwin = (GtkWidget *)gtk_builder_get_object(glade_xml, "passwd_window");
+    pwd_entry = (GtkEntry *)gtk_builder_get_object(glade_xml, "passwd");
+    gw_pwd_entry = (GtkEntry *)gtk_builder_get_object(glade_xml, "gw_passwd");
+    buffer = gtk_entry_get_buffer(pwd_entry);
+    gw_buffer = gtk_entry_get_buffer(gw_pwd_entry);
     passwd_text = (GtkWidget *)gtk_builder_get_object(glade_xml, "passwd_text");
     gw_passwd_text = (GtkWidget *)gtk_builder_get_object(glade_xml, "gw_passwd_text");
     gw_passwd = (GtkWidget *)gtk_builder_get_object(glade_xml, "gw_passwd");
@@ -526,6 +532,9 @@ on_launch_button_clicked()
     }
 
     gtk_widget_show(pwdwin);
+    gtk_entry_buffer_delete_text(buffer, 0, -1);
+    gtk_entry_buffer_delete_text(gw_buffer, 0, -1);
+    gtk_entry_grab_focus_without_selecting(pwd_entry);
 }
 
 /************************************************************************
@@ -778,4 +787,24 @@ on_listbox_row_activated()
 {
     mylog("Inside on_listbox_row_activated\n");
     on_launch_button_clicked();
+}
+
+/************************************************************************
+ ********************      ON_PASSWD_ICON_PRESS      ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_passwd_icon_press(GtkEntry *entry, GtkEntryIconPosition icon_pos,
+    GdkEvent *event, gpointer data)
+{
+    gtk_entry_set_visibility(entry, TRUE);
+}
+
+/************************************************************************
+ ********************     ON_PASSWD_ICON_RELEASE     ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_passwd_icon_release(GtkEntry *entry, GtkEntryIconPosition icon_pos,
+    GdkEvent *event, gpointer data)
+{
+    gtk_entry_set_visibility(entry, FALSE);
 }
