@@ -5,8 +5,8 @@ log()
     logger -t auto-upgrade -p user.info $@
 }
 
+log "Executing auto-upgrade.sh"
 DIR='/var/run/auto-upgrade'
-LOG="$DIR/auto-upgrade.log"
 UPGRADE_STAMP="$DIR/last_upgrade"
 
 [ ! -d $DIR ] && mkdir -p $DIR
@@ -33,7 +33,7 @@ fi
 INTERVAL=$(expr $NOW - $LAST_UPGRADE)
 log "Seconds since last update: $INTERVAL"
 
-[ $INTERVAL -lt 86400 ] && exit 0
+[ $INTERVAL -le 82800 ] && exit 0
 
 # See if we need to run "apt-get upgrade". We'll only run this if:
 # 1. There are packages that need to be upgraded.
