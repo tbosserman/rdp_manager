@@ -46,6 +46,7 @@ typedef struct s_info t_info;
 
 t_info		netmon_info[2];
 int		cur_info_index = -1;
+time_t		last_reboot_warn;
 
 /************************************************************************
  ********************         DEFAULT_ROUTE          ********************
@@ -355,4 +356,29 @@ test_connect(char *hostname, int port)
     alarm(0);
     sigaction(SIGALRM, &old_action, NULL);
     return(ai == NULL ? FALSE : TRUE);
+}
+
+/************************************************************************
+ ********************          CHECK_REBOOT          ********************
+ ************************************************************************/
+gboolean
+check_reboot(gpointer user_data)
+{
+    time_t	now;
+
+    // See if /var/run/reboot-required exists. If it does and it's been at
+    // least an hour since we last warned the user, tell them it's time to
+    // reboot the machine.
+    if (access("/var/run/reboot-required", F_OK) < 0)
+	return(G_SOURCE_CONTINUE);
+
+    now = time(NULL);
+    if (now - last_reboot_warn >= 3600)
+    {
+	alert("A reboot is required to apply all updates\n"
+	      "Please reboot as soon as it's convenient");
+	last_reboot_warn = now;
+    }
+
+    return(G_SOURCE_CONTINUE);
 }

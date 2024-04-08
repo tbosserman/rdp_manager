@@ -18,6 +18,7 @@
 #define	MAX_ARGS	32
 
 extern gboolean netmon(gpointer user_data);
+extern gboolean check_reboot(gpointer user_data);
 extern gboolean test_connect(char *host, int port);
 extern int resolve_hostname(char *);
 
@@ -216,6 +217,7 @@ my_gtk_init()
     }
 
     g_timeout_add_seconds(15, netmon, NULL);
+    g_timeout_add_seconds(300, check_reboot, NULL);
 
     mylog("Loading entries from %s\n", entries_file);
     num_entries = load_entries(entries_file, entries);
