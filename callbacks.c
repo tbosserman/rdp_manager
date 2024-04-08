@@ -18,6 +18,7 @@
 #define	MAX_ARGS	32
 
 extern gboolean netmon(gpointer user_data);
+extern gboolean test_connect(char *host, int port);
 extern int resolve_hostname(char *);
 
 static aes256_key_t	crypto_key;
@@ -357,9 +358,10 @@ gen_vector(char *fmt, ...)
 void
 launch()
 {
-    int			i, fd, rownum, fnum;
+    int			i, fd, rownum, fnum, portnum;
     char		**fields, *user, *passwd, *gw_user, *gw_passwd;
-    char		*args[MAX_ARGS], *temp, *p, logfile[1024];
+    char		*args[MAX_ARGS], *temp, *p, logfile[1024], *host;
+    char		*msg;
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
@@ -386,13 +388,14 @@ launch()
     args[fnum++] = gen_vector("/cert-ignore");
     args[fnum++] = gen_vector("/size:%s", temp);
     args[fnum++] = gen_vector("/u:%s@%s", user, fields[DOMAIN]);
-    // We need to display a new window to prompt for a password.
     args[fnum++] = gen_vector("/p:%s", passwd);
     args[fnum++] = gen_vector("/v:%s:%s", fields[HOST], fields[PORT]);
     args[fnum] = NULL;
     
     if (fields[GATEWAY][0] != '\0')
     {
+	host = fields[GATEWAY];
+	portnum = atoi(fields[GW_PORT]);
 	gw_passwd = (char *)gtk_entry_get_text(gw_pwd_widget);
 	gw_user = fields[GW_USER];
 	if (gw_user[0] == '\0')
@@ -403,6 +406,20 @@ launch()
 	args[fnum++] = gen_vector("/gu:%s@%s", gw_user, fields[DOMAIN]);
 	args[fnum++] = gen_vector("/gp:%s", gw_passwd);
 	args[fnum++] = NULL;
+    }
+    else
+    {
+	host = fields[HOST];
+	portnum = atoi(fields[PORT]);
+    }
+
+    // Before we bother to try and launch xfreerdp, let's make sure we can
+    // actually connect to the gateway / host.
+    if (!test_connect(host, portnum))
+    {
+	msg = "Unable to connect to %s:%d\nLook in %s/logfile for details";
+	alert(msg, host, portnum, config_dir);
+	return;
     }
 
     /*
@@ -592,10 +609,20 @@ check_entry(char *fields[])
 	strcat(msg, "\n· Host name must not be blank");
 	errcount++;
     }
+    if (fields[PORT][0] == '\0')
+    {
+	strcat(msg, "\n· Port number must not be blank");
+	errcount++;
+    }
 
     // Do a little hostname verification via DNS
     if (gw_host[0] != '\0')
     {
+	if (fields[GW_PORT][0] == '\0')
+	{
+	    strcat(msg, "\n· Gateway port number must not be blank");
+	    errcount++;
+	}
 	if (resolve_hostname(gw_host) != 0)
 	{
 	    snprintf(temp, sizeof(temp),

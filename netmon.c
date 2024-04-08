@@ -282,3 +282,77 @@ netmon(gpointer user_data)
 
     return(G_SOURCE_CONTINUE);
 }
+
+/************************************************************************
+ ********************            HANDLER             ********************
+ ************************************************************************/
+void
+test_alarm_handler(int sig)
+{
+    mylog("Timeout testing host connectivity\n");
+}
+
+/************************************************************************
+ ********************          TEST_CONNECT          ********************
+ ************************************************************************/
+gboolean
+test_connect(char *hostname, int port)
+{
+    int			code, sockfd, connfd;
+    char		service[128], printable[128];
+    struct addrinfo	hints, *ai, *orig_ai;
+    struct sockaddr_in	*in4;
+    struct sockaddr_in6	*in6;
+    void		*addr;
+    struct sigaction	new_action, old_action;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family = PF_UNSPEC;
+    snprintf(service, sizeof(service), "%d", port);
+    if ((code = getaddrinfo(hostname, service, &hints, &orig_ai)) != 0)
+    {
+	mylog("getaddrinfo(): %d: %s\n", code, gai_strerror(code));
+	return(FALSE);
+    }
+
+    // Establish a 5 second timeout for testing connectivity
+    // Some failure modes can take a REALLY LONG TIME!
+    memset(&new_action, 0, sizeof(new_action));
+    new_action.sa_handler = test_alarm_handler;
+    sigaction(SIGALRM, &new_action, &old_action);
+    alarm(5);
+
+    for (ai = orig_ai; ai != NULL; ai = ai->ai_next)
+    {
+	if ((sockfd = socket(ai->ai_family, SOCK_STREAM, 0)) < 0)
+	{
+	    mylog("socket(): %d: %s\n", errno, strerror(errno));
+	    freeaddrinfo(orig_ai);
+	    return(FALSE);
+	}
+
+	if (ai->ai_family == PF_INET6)
+	{
+	    in6 = (struct sockaddr_in6 *)ai->ai_addr;
+	    addr = (void *)&in6->sin6_addr;
+	}
+	else
+	{
+	    in4 = (struct sockaddr_in *)ai->ai_addr;
+	    addr = (void *)&in4->sin_addr;
+	}
+	inet_ntop(ai->ai_family, addr, printable, sizeof(printable));
+	mylog("Connecting to %s\n", printable);
+	if ((connfd = connect(sockfd, ai->ai_addr, ai->ai_addrlen)) < 0)
+	    mylog("socket(): %d: %s\n", errno, strerror(errno));
+	close(sockfd);
+	close(connfd);
+	if (connfd >= 0)
+	    break;
+    }
+    freeaddrinfo(orig_ai);
+    alarm(0);
+    sigaction(SIGALRM, &old_action, NULL);
+    return(ai == NULL ? FALSE : TRUE);
+}
