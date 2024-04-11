@@ -388,7 +388,10 @@ launch()
     user = fields[USERNAME];
     args[fnum++] = gen_vector("xfreerdp");
     args[fnum++] = gen_vector("/cert-ignore");
-    args[fnum++] = gen_vector("/size:%s", temp);
+    if (temp[0] != '\0')
+	args[fnum++] = gen_vector("/size:%s", temp);
+    else
+	args[fnum++] = gen_vector("/workarea");
     args[fnum++] = gen_vector("/u:%s@%s", user, fields[DOMAIN]);
     args[fnum++] = gen_vector("/p:%s", passwd);
     args[fnum++] = gen_vector("/v:%s:%s", fields[HOST], fields[PORT]);

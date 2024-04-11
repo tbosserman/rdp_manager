@@ -241,8 +241,8 @@
               <object class="GtkEntry" id="display_size">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="tooltip-text" translatable="yes">Size of display window in form WxH</property>
-                <property name="text" translatable="yes">1680x950</property>
+                <property name="tooltip-text" translatable="yes">Size of display window in form WxH.
+Leave blank to use entire screen.</property>
               </object>
               <packing>
                 <property name="left-attach">1</property>

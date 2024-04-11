@@ -11,7 +11,8 @@
 #define MAX_ENTRIES	250
 #define ADD_MODE	0
 #define EDIT_MODE	1
-#define DEFAULT_SIZE	"1680x950"
+#define DEFAULT_SIZE	""
+//#define DEFAULT_SIZE	"1680x950"
 //#define XFREERDP	"/opt/freerdp/bin/xfreerdp"
 #define XFREERDP	"/usr/bin/xfreerdp"
 
