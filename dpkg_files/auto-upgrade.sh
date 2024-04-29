@@ -5,6 +5,31 @@ log()
     logger -t auto-upgrade -p user.info $@
 }
 
+# Only keep the most recent 10 versions of a given log file.
+rotate()
+{
+    DIR="$1"
+    FILE="$2"
+
+    [ $# -ne 2 ] && { log "usage: rotate directory logfile"; return 0; }
+
+    cd "$DIR"
+    [ -f $FILE ] || { log "not rotating $FILE: no such file"; return 0; }
+    N=8
+    while [ $N -ge 0 ]
+    do
+	if [ -f $FILE.$N ]
+	then
+	    M=$(expr $N + 1)
+	    mv $FILE.$N $FILE.$M
+	fi
+	N=$(expr $N - 1)
+    done
+    mv $FILE $FILE.0
+
+    cd "$OLDPWD"
+}
+
 log "Executing auto-upgrade.sh"
 DIR='/var/run/auto-upgrade'
 UPGRADE_STAMP="$DIR/last_upgrade"
@@ -46,12 +71,15 @@ then
     exit 0
 fi
 log apt-get update
+rotate $DIR update.log
 apt-get update > $DIR/update.log 2>&1
 
 log apt-get upgrade
+rotate $DIR upgrade.log
 apt-get upgrade -y --with-new-pkgs > $DIR/upgrade.log 2>&1
 
 log apt-get autoremove
+rotate $DIR autoremove.log
 apt-get autoremove -y > $DIR/autoremove.log 2>&1
 
 touch $UPGRADE_STAMP
