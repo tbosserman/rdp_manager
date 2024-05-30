@@ -387,6 +387,7 @@ launch()
     fnum = 0;
     user = fields[USERNAME];
     args[fnum++] = gen_vector("xfreerdp");
+    args[fnum++] = gen_vector("/sound");
     args[fnum++] = gen_vector("/cert-ignore");
     if (temp[0] != '\0')
 	args[fnum++] = gen_vector("/size:%s", temp);
