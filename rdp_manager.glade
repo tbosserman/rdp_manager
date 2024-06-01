@@ -609,6 +609,7 @@ Leave blank to use entire screen.</property>
                 <property name="image-position">right</property>
                 <property name="always-show-image">True</property>
                 <signal name="clicked" handler="on_passwd_ok_clicked" swapped="no"/>
+                <accelerator key="Return" signal="clicked"/>
               </object>
               <packing>
                 <property name="expand">False</property>
