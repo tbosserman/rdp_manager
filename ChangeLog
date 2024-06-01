@@ -1,3 +1,5 @@
+2024/06/01 - Version 2.5: Enable /fullscrean and /floatbar.
+	     Also make ENTER key active the OK button in password window
 2024/05/30 - Version 2.4: Add "/sound" argument to xfreerdp.
 2024/04/11 - Version 2.3: Use entire screen if screen size field is left blank.
 2024/04/08 - Once per hour, warn user to reboot if /var/run/reboot-reqiured
