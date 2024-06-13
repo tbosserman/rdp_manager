@@ -5,7 +5,7 @@ ACTION="$2"
 
 case "$ACTION" in
     up)
-	/usr/local/bin/noip2
+	/usr/local/bin/noip2 > /var/log/noip2.log 2>&1
 	;;
     down)
 	killall noip2
