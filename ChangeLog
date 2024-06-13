@@ -1,3 +1,4 @@
+2024/06/13 - Minor DPKG update: redirect output of noip2 to /var/log/noip2.log
 2024/06/01 - Version 2.5: Enable /fullscrean and /floatbar.
 	     Also make ENTER key active the OK button in password window
 2024/05/30 - Version 2.4: Add "/sound" argument to xfreerdp.
