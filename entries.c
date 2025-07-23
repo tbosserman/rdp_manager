@@ -62,6 +62,7 @@ load_entries(char *entries_file, entry_t *entries)
 	    entname = strtok(line+1, "]");
 	    alltrim(entname);
 	    entry->fields[ENTRY_NAME] = strdup(entname);
+	    entry->fields[MULTI_MONITOR] = strdup("0");
 	    continue;
 	}
 

@@ -4,10 +4,11 @@
 #define DOMAIN		3
 #define USERNAME	4
 #define DISPLAY_SIZE	5
-#define GATEWAY		6
-#define GW_PORT		7
-#define GW_USER		8
-#define NUM_FIELDS	9
+#define MULTI_MONITOR	6
+#define GATEWAY		7
+#define GW_PORT		8
+#define GW_USER		9
+#define NUM_FIELDS	10
 #define MAX_ENTRIES	250
 #define ADD_MODE	0
 #define EDIT_MODE	1

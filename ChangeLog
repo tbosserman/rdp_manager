@@ -1,3 +1,4 @@
+2025/07/22 - Added a "multi-monitor" checkbox.
 2024/06/13 - Minor DPKG update: redirect output of noip2 to /var/log/noip2.log
 2024/06/01 - Version 2.5: Enable /fullscrean and /floatbar.
 	     Also make ENTER key active the OK button in password window

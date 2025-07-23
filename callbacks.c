@@ -36,8 +36,8 @@ int			mode;
 
 char			*widget_names[] = {
     "entry_name",	"host",		"port",		"domain",
-    "username",		"display_size",	"gw_host",	"gw_port",
-    "gw_username"
+    "username",		"display_size",	"multi_monitor","gw_host",
+    "gw_port",		"gw_username"
 };
 
 extern GtkBuilder	*glade_xml;
@@ -278,6 +278,9 @@ clear_display()
 	    case GW_PORT:
 		gtk_entry_set_text(widget, "443");
 		break;
+	    case MULTI_MONITOR:
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), FALSE);
+		break;
 	    default:
 		gtk_entry_set_text(widget, "");
 	}
@@ -314,11 +317,11 @@ G_MODULE_EXPORT void
 on_edit_button_clicked()
 {
     int			i, rownum;
-    char		**fields;
+    char		**fields, temp[16];
     GtkWidget		*win;
     GtkListBox		*box;
     GtkListBoxRow	*row;
-    GtkEntry		*widget;
+    GObject		*widget;
 
     mode = EDIT_MODE;
 
@@ -332,8 +335,16 @@ on_edit_button_clicked()
     /* Copy data from the entries table into the GUI */
     for (i = 0; i < NUM_FIELDS; ++i)
     {
-	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	gtk_entry_set_text(widget, fields[i]);
+	widget = gtk_builder_get_object(glade_xml, widget_names[i]);
+	if (i == MULTI_MONITOR)
+	{
+	    strcpy(temp, "0");
+	    if (fields[i])
+		strcpy(temp, fields[i]);
+	    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), atoi(temp));
+	}
+	else
+	    gtk_entry_set_text(GTK_ENTRY(widget), fields[i]);
     }
 
     win = (GtkWidget *)gtk_builder_get_object(glade_xml, "add_window");
@@ -361,12 +372,14 @@ void
 launch()
 {
     int			i, fd, rownum, fnum, portnum;
+    gboolean		multimon;
     char		**fields, *user, *passwd, *gw_user, *gw_passwd;
     char		*args[MAX_ARGS], *temp, *p, logfile[1024], *host;
     char		*msg;
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
+    GObject		*multi;
 
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
@@ -383,6 +396,10 @@ launch()
     gw_pwd_widget = (GtkEntry *)gtk_builder_get_object(glade_xml, "gw_passwd");
     passwd = (char *)gtk_entry_get_text(pwd_widget);
 
+    // Extract the value of the checkbox that indicates multi-monitor.
+    multi = gtk_builder_get_object(glade_xml, "multi_monitor");
+    multimon = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(multi));
+
     // Build up the argument list to be passed to xfreerdp
     fnum = 0;
     user = fields[USERNAME];
@@ -390,6 +407,8 @@ launch()
     args[fnum++] = gen_vector("/sound");
     args[fnum++] = gen_vector("/audio-mode:0");
     args[fnum++] = gen_vector("/cert-ignore");
+    if (multimon)
+	args[fnum++] = gen_vector("/multimon");
     if (temp[0] != '\0')
 	args[fnum++] = gen_vector("/size:%s", temp);
     else
@@ -664,10 +683,10 @@ check_entry(char *fields[])
 int
 add_entry()
 {
-    int			i;
-    char		*textp;
+    int			i, multimon;
+    char		*textp, temp[16];
     entry_t		*entry;
-    GtkEntry		*widget;
+    GObject		*widget;
 
     if (num_entries+1 >= MAX_ENTRIES)
     {
@@ -678,10 +697,19 @@ add_entry()
     entry = &entries[num_entries++];
     for (i = 0; i < NUM_FIELDS; ++i)
     {
-	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	textp = strdup((char *)gtk_entry_get_text(widget));
-	alltrim(textp);
-	entry->fields[i] = textp;
+	widget = gtk_builder_get_object(glade_xml, widget_names[i]);
+	if (i == MULTI_MONITOR)
+	{
+	    multimon = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+	    sprintf(temp, "%d", multimon);
+	    entry->fields[i] = strdup(temp);
+	}
+	else
+	{
+	    textp = strdup((char *)gtk_entry_get_text(GTK_ENTRY(widget)));
+	    alltrim(textp);
+	    entry->fields[i] = textp;
+	}
     }
 
     if (check_entry(entry->fields) != 0)
@@ -704,11 +732,12 @@ int
 update_entry()
 {
     int			i, rownum;
-    char		*fields[NUM_FIELDS];
+    gboolean		multimon;
+    char		*fields[NUM_FIELDS], temp[16];
     const gchar		*textp;
     GtkListBox		*box;
     GtkListBoxRow	*row;
-    GtkEntry		*widget;
+    GObject		*widget;
     GList		*child;
     GtkLabel		*label;
 
@@ -718,9 +747,18 @@ update_entry()
 
     for (i = 0; i < NUM_FIELDS; ++i)
     {
-	widget = GTK_ENTRY(gtk_builder_get_object(glade_xml, widget_names[i]));
-	textp = gtk_entry_get_text(widget);
-	fields[i] = strdup(textp);
+	widget = gtk_builder_get_object(glade_xml, widget_names[i]);
+	if (i == MULTI_MONITOR)
+	{
+	    multimon = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+	    sprintf(temp, "%d", multimon);
+	    fields[i] = strdup(temp);
+	}
+	else
+	{
+	    textp = gtk_entry_get_text(GTK_ENTRY(widget));
+	    fields[i] = strdup(textp);
+	}
 	alltrim(fields[i]);
     }
 
