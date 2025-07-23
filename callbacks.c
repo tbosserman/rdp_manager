@@ -375,7 +375,7 @@ launch()
     gboolean		multimon;
     char		**fields, *user, *passwd, *gw_user, *gw_passwd;
     char		*args[MAX_ARGS], *temp, *p, logfile[1024], *host;
-    char		*msg;
+    char		*msg, *domain;
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
@@ -401,6 +401,7 @@ launch()
     multimon = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(multi));
 
     // Build up the argument list to be passed to xfreerdp
+    domain = fields[DOMAIN];
     fnum = 0;
     user = fields[USERNAME];
     args[fnum++] = gen_vector("xfreerdp");
@@ -416,7 +417,10 @@ launch()
 	args[fnum++] = gen_vector("/f");
 	args[fnum++] = gen_vector("/floatbar");
     }
-    args[fnum++] = gen_vector("/u:%s@%s", user, fields[DOMAIN]);
+    if (domain && domain[0] != '\0')
+	args[fnum++] = gen_vector("/u:%s@%s", user, domain);
+    else
+	args[fnum++] = gen_vector("/u:%s", user);
     args[fnum++] = gen_vector("/p:%s", passwd);
     args[fnum++] = gen_vector("/v:%s:%s", fields[HOST], fields[PORT]);
     args[fnum] = NULL;
@@ -432,7 +436,10 @@ launch()
 	if (gw_passwd[0] == '\0' || strcmp(user, gw_user) == 0)
 	    gw_passwd = passwd;
 	args[fnum++] = gen_vector("/g:%s:%s", fields[GATEWAY], fields[GW_PORT]);
-	args[fnum++] = gen_vector("/gu:%s@%s", gw_user, fields[DOMAIN]);
+	if (domain)
+	    args[fnum++] = gen_vector("/gu:%s@%s", gw_user, domain);
+	else
+	    args[fnum++] = gen_vector("/gu:%s", gw_user);
 	args[fnum++] = gen_vector("/gp:%s", gw_passwd);
 	args[fnum++] = NULL;
     }
@@ -628,11 +635,14 @@ check_entry(char *fields[])
 	strcat(msg, "\n· User name must not be blank");
 	errcount++;
     }
+    // 2025/07/23: per request from ssaunders@, allow blank domain.
+#ifdef REQUIRE_DOMAIN
     if (fields[DOMAIN][0] == '\0')
     {
 	strcat(msg, "\n· Domain name must not be blank");
 	errcount++;
     }
+#endif
     if (host[0] == '\0')
     {
 	strcat(msg, "\n· Host name must not be blank");
