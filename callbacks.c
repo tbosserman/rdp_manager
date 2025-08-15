@@ -166,7 +166,7 @@ my_gtk_init()
     struct sigaction	newact, oldact;
 
     memset(&newact, 0, sizeof(newact));
-    newact.sa_flags = SA_SIGINFO;
+    newact.sa_flags = SA_SIGINFO | SA_RESTART;
     newact.sa_sigaction = handler;
     sigaction(SIGCHLD, &newact, &oldact);
 
@@ -371,6 +371,7 @@ gen_vector(char *fmt, ...)
 void
 launch()
 {
+    FILE		*fp;
     int			i, fd, rownum, fnum, portnum;
     gboolean		multimon;
     char		**fields, *user, *passwd, *gw_user, *gw_passwd;
@@ -499,10 +500,21 @@ launch()
 	close(0);
 	execv(XFREERDP, args);
 	/* Shouldn't get here unless exec craps out completely */
+	fp = fopen(logfile, "a");
+	fprintf(fp, "execv failed: %s\n", strerror(errno));
+	fclose(fp);
+	// This sleep() is a MAJOR, UGLY KLUDGE!!! It's here because if
+	// the child process exits too quickly then the GUI in the parent
+	// gets messed up for some reason. This needs a lot more investigation
+	// for a more comprehensive solution.
+	// UPDATE: Adding SA_RESTART to sa_flags during sig handler
+	// initialization *appears* to have fixed this. Leaving this mess
+	// in place (for now) purely for documentation purposes.
+	//sleep(2);
 	exit(1);
     }
 
-    alert("Please check your phone for a Duo push authentication request.");
+    // alert("Please check your phone for a Duo push authentication request.");
 
     for (i = 0; args[i] != NULL; ++i)
 	free(args[i]);
