@@ -213,6 +213,14 @@ all_tests(t_info *info)
     if ((info->flags & flags) != flags)
 	return;
 
+    // What follows is just to test routing out over the internet.
+    // We don't need to do this if we're in "local" mode.
+    if (global_options.access_mode == LOCAL)
+    {
+	info->flags |= PING_OK;
+	return;
+    }
+
     if (getservbyname_r("domain", "udp", &svc, buf, sizeof(buf), &resultp))
 	return;
 

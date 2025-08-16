@@ -890,10 +890,46 @@ on_options_button_clicked()
 }
 
 /************************************************************************
+ ********************        OPTIONS_CLICKED         ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+options_clicked(GtkButton *button, gpointer user_data)
+{
+    GtkWidget		*win;
+    GtkComboBox		*combobox;
+    int			mode;
+    GtkButton		*reset, *cancel;
+
+    reset = GTK_BUTTON(gtk_builder_get_object(glade_xml, "options_reset"));
+    cancel = GTK_BUTTON(gtk_builder_get_object(glade_xml, "options_cancel"));
+    win = (GtkWidget *)gtk_builder_get_object(glade_xml, "options_window");
+    combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "access_mode_menu");
+
+    if (button == reset)
+    {
+	gtk_combo_box_set_active(combobox, 0);
+	return;
+    }
+
+    gtk_widget_hide(win);
+
+    if (button == cancel)
+    {
+	gtk_combo_box_set_active(combobox, global_options.access_mode);
+	return;
+    }
+
+    mode = gtk_combo_box_get_active(combobox);
+    global_options.access_mode = mode;
+    if (save_entries(entries_file, entries, num_entries) < 0)
+	alert("error saving to %s: %s", entries_file, strerror(errno));
+}
+
+/************************************************************************
  ********************     ON_OPTIONS_OK_CLICKED      ********************
  ************************************************************************/
 G_MODULE_EXPORT void
-on_options_ok_clicked()
+on_options_ok_clicked(GtkButton *button, gpointer user_data)
 {
     GtkWidget		*win;
     GtkComboBox		*combobox;
@@ -903,7 +939,6 @@ on_options_ok_clicked()
     combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "access_mode_menu");
     gtk_widget_hide(win);
     mode = gtk_combo_box_get_active(combobox);
-    mylog("DEBUG: options OK clicked, access mode=%d\n", mode);
     global_options.access_mode = mode;
     if (save_entries(entries_file, entries, num_entries) < 0)
 	alert("error saving to %s: %s", entries_file, strerror(errno));

@@ -2,10 +2,12 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <gtk/gtk.h>
 #include "rdp_manager.h"
 
 extern void mylog(char *fmt, ...);
 
+extern GtkBuilder	*glade_xml;
 extern options_t	global_options;
 
 #define ACCESS_MODE_KEY	0
@@ -34,7 +36,7 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
 
     // Save the global config values
     fprintf(fp, "[GLOBAL]\n");
-    fprintf(fp, "mode: %s\n\n", mode_values[global_options.access_mode]);
+    fprintf(fp, "access_mode: %s\n\n", mode_values[global_options.access_mode]);
 
     for (i = 0; i < num_entries; ++i)
     {
@@ -57,6 +59,7 @@ parse_global_options(char *key, char *value)
 {
     int		i;
     char	*global_key;
+    GtkComboBox	*combobox;
 
     mylog("DEBUG: global key: '%s', value='%s'\n", key, value);
     for (i = 0; (global_key = global_keys[i]) != NULL; ++i)
@@ -75,6 +78,9 @@ parse_global_options(char *key, char *value)
 		global_options.access_mode = REMOTE;
 	    else
 		mylog("Unrecognized mode in global options: %s\n", value);
+	    combobox = GTK_COMBO_BOX(gtk_builder_get_object(glade_xml,
+		"access_mode_menu"));
+	    gtk_combo_box_set_active(combobox, global_options.access_mode);
 
 	default:
 	    mylog("Ignoring global config key '%s'\n", key);
