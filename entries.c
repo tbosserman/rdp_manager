@@ -61,14 +61,12 @@ parse_global_options(char *key, char *value)
     char	*global_key;
     GtkComboBox	*combobox;
 
-    mylog("DEBUG: global key: '%s', value='%s'\n", key, value);
     for (i = 0; (global_key = global_keys[i]) != NULL; ++i)
     {
 	if (strcmp(key, global_key) == 0)
 	    break;
     }
 
-    mylog("DEBUG: in global_options, i=%d\n", i);
     switch(i)
     {
 	case ACCESS_MODE_KEY:
@@ -81,6 +79,7 @@ parse_global_options(char *key, char *value)
 	    combobox = GTK_COMBO_BOX(gtk_builder_get_object(glade_xml,
 		"access_mode_menu"));
 	    gtk_combo_box_set_active(combobox, global_options.access_mode);
+	    break;
 
 	default:
 	    mylog("Ignoring global config key '%s'\n", key);
