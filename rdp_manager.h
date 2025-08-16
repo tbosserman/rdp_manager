@@ -17,9 +17,26 @@
 //#define XFREERDP	"/opt/freerdp/bin/xfreerdp"
 #define XFREERDP	"/usr/bin/xfreerdp"
 
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+// Global options values
+#define LOCAL		0
+#define REMOTE		1
+
 typedef struct {
     char	*fields[NUM_FIELDS];
 } entry_t;
+
+// A bit insane that I'm creating a struct for this, but we'll probably
+// think of other global options as time goes by....
+typedef struct {
+    int		access_mode; /* REMOTE or LOCAL */
+} options_t;
 
 extern int save_entries(char *entries_file, entry_t *entries, int num_entries);
 extern int load_entries(char *entries_file, entry_t *entries);

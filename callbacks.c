@@ -33,6 +33,7 @@ char			logfile[1024];
 entry_t			entries[MAX_ENTRIES];
 int			num_entries;
 int			mode;
+options_t		global_options;
 
 char			*widget_names[] = {
     "entry_name",	"host",		"port",		"domain",
@@ -216,9 +217,6 @@ my_gtk_init()
 	}
     }
 
-    g_timeout_add_seconds(15, netmon, NULL);
-    g_timeout_add_seconds(300, check_reboot, NULL);
-
     mylog("Loading entries from %s\n", entries_file);
     num_entries = load_entries(entries_file, entries);
     for (i = 0; i < num_entries; ++i)
@@ -227,6 +225,9 @@ my_gtk_init()
     gtk_widget_show_all(window1);
     /* Call netmon once by to notify user immediately if no internet */
     (void)netmon(NULL);
+
+    g_timeout_add_seconds(15, netmon, (gpointer)&global_options);
+    g_timeout_add_seconds(300, check_reboot, NULL);
 }
 
 /************************************************************************
@@ -877,12 +878,43 @@ on_about_button_clicked()
 }
 
 /************************************************************************
+ ********************   ON_OPTIONS_BUTTON_CLICKED    ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_options_button_clicked()
+{
+    GtkWidget		*win;
+
+    win = (GtkWidget *)gtk_builder_get_object(glade_xml, "options_window");
+    gtk_widget_show(win);
+}
+
+/************************************************************************
+ ********************     ON_OPTIONS_OK_CLICKED      ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_options_ok_clicked()
+{
+    GtkWidget		*win;
+    GtkComboBox		*combobox;
+    int			mode;
+
+    win = (GtkWidget *)gtk_builder_get_object(glade_xml, "options_window");
+    combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "access_mode_menu");
+    gtk_widget_hide(win);
+    mode = gtk_combo_box_get_active(combobox);
+    mylog("DEBUG: options OK clicked, access mode=%d\n", mode);
+    global_options.access_mode = mode;
+    if (save_entries(entries_file, entries, num_entries) < 0)
+	alert("error saving to %s: %s", entries_file, strerror(errno));
+}
+
+/************************************************************************
  ********************    ON_LISTBOX_ROW_ACTIVATED    ********************
  ************************************************************************/
 G_MODULE_EXPORT void
 on_listbox_row_activated()
 {
-    mylog("Inside on_listbox_row_activated\n");
     on_launch_button_clicked();
 }
 

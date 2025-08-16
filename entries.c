@@ -6,6 +6,18 @@
 
 extern void mylog(char *fmt, ...);
 
+extern options_t	global_options;
+
+#define ACCESS_MODE_KEY	0
+static char *global_keys[] = {
+    "access_mode",	// REMOTE or LOCAL
+    NULL
+};
+static char *mode_values[] = {
+    "LOCAL",
+    "REMOTE"
+};
+
 /************************************************************************
  ********************          SAVE_ENTRIES          ********************
  ************************************************************************/
@@ -19,6 +31,10 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
     if ((fp = fopen(entries_file, "w")) == NULL)
 	return(-1);
     (void)fchmod(fileno(fp), 0600);
+
+    // Save the global config values
+    fprintf(fp, "[GLOBAL]\n");
+    fprintf(fp, "mode: %s\n\n", mode_values[global_options.access_mode]);
 
     for (i = 0; i < num_entries; ++i)
     {
@@ -34,13 +50,46 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
 }
 
 /************************************************************************
+ ********************         GLOBAL_OPTIONS         ********************
+ ************************************************************************/
+void
+parse_global_options(char *key, char *value)
+{
+    int		i;
+    char	*global_key;
+
+    mylog("DEBUG: global key: '%s', value='%s'\n", key, value);
+    for (i = 0; (global_key = global_keys[i]) != NULL; ++i)
+    {
+	if (strcmp(key, global_key) == 0)
+	    break;
+    }
+
+    mylog("DEBUG: in global_options, i=%d\n", i);
+    switch(i)
+    {
+	case ACCESS_MODE_KEY:
+	    if (strcmp(value, "LOCAL") == 0)
+		global_options.access_mode = LOCAL;
+	    else if (strcmp(value, "REMOTE") == 0)
+		global_options.access_mode = REMOTE;
+	    else
+		mylog("Unrecognized mode in global options: %s\n", value);
+
+	default:
+	    mylog("Ignoring global config key '%s'\n", key);
+	    return;
+    }
+}
+
+/************************************************************************
  ********************          LOAD_ENTRIES          ********************
  ************************************************************************/
 int
 load_entries(char *entries_file, entry_t *entries)
 {
     FILE	*fp;
-    int		i, num_entries;
+    int		i, num_entries, global;
     char	line[1024], *key, *value, *entname;
     entry_t	*entry;
 
@@ -50,6 +99,7 @@ load_entries(char *entries_file, entry_t *entries)
     num_entries = 0;
     entry = &entries[0];
     entname = NULL;
+    global = FALSE;
     while (fgets(line, sizeof(line), fp) != NULL)
     {
 	line[strlen(line)-1] = '\0';
@@ -58,11 +108,18 @@ load_entries(char *entries_file, entry_t *entries)
 	    continue;
 	if (line[0] == '[')
 	{
-	    entry = &entries[num_entries++];
 	    entname = strtok(line+1, "]");
 	    alltrim(entname);
-	    entry->fields[ENTRY_NAME] = strdup(entname);
-	    entry->fields[MULTI_MONITOR] = strdup("0");
+	    // KLUDGE WARNING: hacking some global options into the entries file
+	    if (strcmp(entname, "GLOBAL") == 0)
+		global = TRUE;
+	    else
+	    {
+		global = FALSE;
+		entry = &entries[num_entries++];
+		entry->fields[ENTRY_NAME] = strdup(entname);
+		entry->fields[MULTI_MONITOR] = strdup("0");
+	    }
 	    continue;
 	}
 
@@ -72,7 +129,14 @@ load_entries(char *entries_file, entry_t *entries)
 	    alltrim(value);
 	else
 	    value = "";
-	mylog("key='%s'  value='%s'\n", key, value);
+
+	// Another KLUDGE WARNING. I'm shoehorning global options into the
+	// entries.dat file.
+	if (global)
+	{
+	    parse_global_options(key, value);
+	    continue;
+	}
 
 	for (i = 0; i < NUM_FIELDS; ++i)
 	    if (strcmp(key, widget_names[i]) == 0)

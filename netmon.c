@@ -10,6 +10,7 @@
 #include <linux/if.h>
 #include <gtk/gtk.h>
 #include "ping_dns.h"
+#include "rdp_manager.h"
 
 #ifndef TRUE
 #define TRUE	1
@@ -32,15 +33,17 @@
 
 #define ADDRLEN		16
 
-extern int	alltrim(char *s);
-extern void	mylog(char *fmt, ...);
-extern void	alert(const char *fmt, ...);
+extern int		alltrim(char *s);
+extern void		mylog(char *fmt, ...);
+extern void		alert(const char *fmt, ...);
+
+extern options_t	global_options;
 
 struct s_info {
-    char	interface[IFNAMSIZ];
-    char	gateway[ADDRLEN];
-    char	ipaddr[ADDRLEN];
-    int		flags;
+    char		interface[IFNAMSIZ];
+    char		gateway[ADDRLEN];
+    char		ipaddr[ADDRLEN];
+    int			flags;
 };
 typedef struct s_info t_info;
 
@@ -154,6 +157,9 @@ check_noip2()
     int		i, code;
     char	*p, *fname, cmd[256];
     FILE	*fp;
+
+    if (global_options.access_mode == LOCAL)
+	return(0);
 
     if ((code = glob("/proc/[0-9]*[0-9]/comm", 0, NULL, &entries)) != 0)
 	return(-1);

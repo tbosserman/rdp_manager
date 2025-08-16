@@ -1,3 +1,5 @@
+2025/08/15 - Version 2.7
+	     Added an "options" menu. Only option is local vs remote.
 2025/07/23 - Allow user to leave domain blank.
 2025/07/22 - Added a "multi-monitor" checkbox.
 2024/06/13 - Minor DPKG update: redirect output of noip2 to /var/log/noip2.log
