@@ -1,3 +1,6 @@
+2025/11/24 - Version 2.9
+	     Fixed bug related to multi-monitor option.
+	     Fixed tiny memory bug when editing an entry.
 2025/08/15 - Version 2.7
 	     Added an "options" menu. Only option is local vs remote.
 2025/07/23 - Allow user to leave domain blank.
