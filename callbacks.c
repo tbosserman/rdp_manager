@@ -381,7 +381,6 @@ launch()
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
-    GObject		*multi;
 
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
@@ -399,8 +398,7 @@ launch()
     passwd = (char *)gtk_entry_get_text(pwd_widget);
 
     // Extract the value of the checkbox that indicates multi-monitor.
-    multi = gtk_builder_get_object(glade_xml, "multi_monitor");
-    multimon = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(multi));
+    multimon = atoi(fields[MULTI_MONITOR]);
 
     // Build up the argument list to be passed to xfreerdp
     domain = fields[DOMAIN];
@@ -770,6 +768,8 @@ update_entry()
 
     for (i = 0; i < NUM_FIELDS; ++i)
     {
+	if (fields[i])
+	    free(fields[i]);
 	widget = gtk_builder_get_object(glade_xml, widget_names[i]);
 	if (i == MULTI_MONITOR)
 	{
