@@ -754,7 +754,7 @@ update_entry()
 {
     int			i, rownum;
     gboolean		multimon;
-    char		*fields[NUM_FIELDS], temp[16];
+    char		**fieldp, *fields[NUM_FIELDS], temp[16];
     const gchar		*textp;
     GtkListBox		*box;
     GtkListBoxRow	*row;
@@ -765,11 +765,10 @@ update_entry()
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
     rownum = gtk_list_box_row_get_index(row);
+    memset(fields, 0, sizeof(fields));
 
     for (i = 0; i < NUM_FIELDS; ++i)
     {
-	if (fields[i])
-	    free(fields[i]);
 	widget = gtk_builder_get_object(glade_xml, widget_names[i]);
 	if (i == MULTI_MONITOR)
 	{
@@ -788,14 +787,17 @@ update_entry()
     if (check_entry(fields) != 0)
     {
 	for (i = 0; i < NUM_FIELDS; ++i)
-	    free(fields[i]);
+	    if (fields[i])
+		free(fields[i]);
 	return(-1);
     }
 
     for (i = 0; i < NUM_FIELDS; ++i)
     {
-	free(entries[rownum].fields[i]);
-	entries[rownum].fields[i] = fields[i];
+	fieldp = &entries[rownum].fields[i];
+	if (*fieldp)
+	    free(*fieldp);
+	*fieldp = fields[i];
     }
 
      // Update the label for this entry in the main window.
