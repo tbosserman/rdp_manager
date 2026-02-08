@@ -79,7 +79,6 @@ parse_global_options(char *key, char *value)
 
     // Set freerdp_version to 2 for backward compatibility with old
     // config files that didn't specify it.
-    version = 2;
     switch(i)
     {
 	case ACCESS_MODE_KEY:
@@ -94,7 +93,12 @@ parse_global_options(char *key, char *value)
 	case FREERDP_VERSION:
 	    version = atoi(value);
 	    if (version != 2 && version != 3)
+	    {
+		mylog("WARNING: FreeRDP version %d invalid. Defaulting to 2.\n",
+		    version);
 		version = 2;
+	    }
+	    global_options.freerdp_version = version;
 	    break;
 
 	case FREERDP_PATH:
@@ -106,7 +110,6 @@ parse_global_options(char *key, char *value)
 	    return;
     }
 
-    global_options.freerdp_version = version;
 }
 
 /************************************************************************
@@ -127,6 +130,8 @@ load_entries(char *entries_file, entry_t *entries)
     entry = &entries[0];
     entname = NULL;
     global = FALSE;
+    // Default to FreeRDP v2 if not specified in config.
+    global_options.freerdp_version = 2;
     while (fgets(line, sizeof(line), fp) != NULL)
     {
 	line[strlen(line)-1] = '\0';

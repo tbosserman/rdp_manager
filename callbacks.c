@@ -401,6 +401,12 @@ launch()
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
 
+    if (global_options.freerdp_version == 3)
+    {
+	alert("FreeRDP version 3 not yet supported");
+	return;
+    }
+
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
     if (row == NULL)
