@@ -885,10 +885,13 @@ on_about_button_clicked()
 G_MODULE_EXPORT void
 on_options_button_clicked()
 {
-    GtkWidget		*win;
+    GtkWidget		*win, *entry;
 
     win = (GtkWidget *)gtk_builder_get_object(glade_xml, "options_window");
     gtk_widget_show(win);
+    entry = (GtkWidget *)gtk_builder_get_object(glade_xml, "freerdp_path");
+    //gtk_widget_grab_focus(win);
+    gtk_widget_grab_focus(entry);
 }
 
 /************************************************************************
@@ -898,18 +901,23 @@ G_MODULE_EXPORT void
 options_clicked(GtkButton *button, gpointer user_data)
 {
     GtkWidget		*win;
-    GtkComboBox		*combobox;
+    GtkComboBox		*combobox, *version;
     int			mode;
     GtkButton		*reset, *cancel;
+    GtkEntry		*entry;
 
     reset = GTK_BUTTON(gtk_builder_get_object(glade_xml, "options_reset"));
     cancel = GTK_BUTTON(gtk_builder_get_object(glade_xml, "options_cancel"));
     win = (GtkWidget *)gtk_builder_get_object(glade_xml, "options_window");
     combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "access_mode_menu");
+    version = (GtkComboBox *)gtk_builder_get_object(glade_xml, "freerdp_version");
+    entry = (GtkEntry *)gtk_builder_get_object(glade_xml, "freerdp_path");
 
     if (button == reset)
     {
 	gtk_combo_box_set_active(combobox, 0);
+	gtk_combo_box_set_active(version, 0);
+	gtk_entry_set_text(entry, "");
 	return;
     }
 

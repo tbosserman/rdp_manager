@@ -3,7 +3,7 @@
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkWindow" id="window1">
-    <property name="can-focus">False</property>
+    <property name="can-focus">True</property>
     <property name="default-height">500</property>
     <signal name="delete-event" handler="on_window1_delete_event" swapped="no"/>
     <signal name="destroy" handler="on_window1_destroy" swapped="no"/>
@@ -117,7 +117,7 @@
               <object class="GtkButton" id="options_button">
                 <property name="label" translatable="yes">Options</property>
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
+                <property name="can-focus">False</property>
                 <property name="receives-default">True</property>
                 <signal name="clicked" handler="on_options_button_clicked" swapped="no"/>
               </object>
@@ -534,34 +534,34 @@ Leave blank to use entire screen.</property>
     </child>
   </object>
   <object class="GtkWindow" id="options_window">
-    <property name="can-focus">False</property>
-    <property name="type">popup</property>
+    <property name="can-focus">True</property>
+    <property name="title" translatable="yes">RDP Manager Options</property>
     <property name="window-position">center-on-parent</property>
-    <property name="type-hint">popup-menu</property>
+    <property name="destroy-with-parent">True</property>
+    <property name="type-hint">dialog</property>
     <property name="gravity">south-east</property>
     <property name="transient-for">window1</property>
-    <property name="attached-to">options_button</property>
     <child>
       <object class="GtkBox">
         <property name="visible">True</property>
-        <property name="can-focus">False</property>
+        <property name="can-focus">True</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkBox">
+          <!-- n-columns=2 n-rows=3 -->
+          <object class="GtkGrid">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="homogeneous">True</property>
+            <property name="can-focus">True</property>
             <child>
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="halign">end</property>
                 <property name="label" translatable="yes">Access Mode: </property>
                 <property name="justify">right</property>
               </object>
               <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
               </packing>
             </child>
             <child>
@@ -576,15 +576,68 @@ Leave blank to use entire screen.</property>
                 </items>
               </object>
               <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">1</property>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">end</property>
+                <property name="label" translatable="yes">FreeRDP Version: </property>
+                <property name="justify">right</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Path to FreeRDP program: </property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkComboBoxText" id="freerdp_version">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">start</property>
+                <property name="active">0</property>
+                <items>
+                  <item translatable="yes">2</item>
+                  <item translatable="yes">3</item>
+                </items>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="freerdp_path">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="tooltip-text" translatable="yes">Path to FreeRDP program. If empty, use PATH to find it.</property>
+                <property name="max-length">64</property>
+                <property name="width-chars">32</property>
+                <property name="truncate-multiline">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
               </packing>
             </child>
           </object>
           <packing>
             <property name="expand">False</property>
-            <property name="fill">False</property>
+            <property name="fill">True</property>
             <property name="position">0</property>
           </packing>
         </child>
@@ -597,7 +650,7 @@ Leave blank to use entire screen.</property>
             <property name="expand">False</property>
             <property name="fill">False</property>
             <property name="padding">10</property>
-            <property name="position">1</property>
+            <property name="position">2</property>
           </packing>
         </child>
         <child>
@@ -655,7 +708,7 @@ Leave blank to use entire screen.</property>
           <packing>
             <property name="expand">False</property>
             <property name="fill">False</property>
-            <property name="position">2</property>
+            <property name="position">3</property>
           </packing>
         </child>
       </object>
