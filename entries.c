@@ -11,8 +11,13 @@ extern GtkBuilder	*glade_xml;
 extern options_t	global_options;
 
 #define ACCESS_MODE_KEY	0
+#define FREERDP_VERSION 1
+#define FREERDP_PATH    2
+
 static char *global_keys[] = {
     "access_mode",	// REMOTE or LOCAL
+    "freerdp_version",
+    "freerdp_path",
     NULL
 };
 static char *mode_values[] = {
@@ -29,6 +34,7 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
     int		i, j;
     FILE	*fp;
     entry_t	*entry;
+    char	*path;
 
     if ((fp = fopen(entries_file, "w")) == NULL)
 	return(-1);
@@ -36,7 +42,12 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
 
     // Save the global config values
     fprintf(fp, "[GLOBAL]\n");
-    fprintf(fp, "access_mode: %s\n\n", mode_values[global_options.access_mode]);
+    fprintf(fp, "access_mode: %s\n", mode_values[global_options.access_mode]);
+    fprintf(fp, "freerdp_version: %d\n", global_options.freerdp_version);
+    path = global_options.freerdp_path;
+    if (path && path[0] != '\0')
+	fprintf(fp, "freerdp_path: %s\n", path);
+    fputc('\n', fp);
 
     for (i = 0; i < num_entries; ++i)
     {
@@ -57,9 +68,8 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
 void
 parse_global_options(char *key, char *value)
 {
-    int		i;
+    int		i, version;
     char	*global_key;
-    GtkComboBox	*combobox;
 
     for (i = 0; (global_key = global_keys[i]) != NULL; ++i)
     {
@@ -67,6 +77,9 @@ parse_global_options(char *key, char *value)
 	    break;
     }
 
+    // Set freerdp_version to 2 for backward compatibility with old
+    // config files that didn't specify it.
+    version = 2;
     switch(i)
     {
 	case ACCESS_MODE_KEY:
@@ -76,15 +89,24 @@ parse_global_options(char *key, char *value)
 		global_options.access_mode = REMOTE;
 	    else
 		mylog("Unrecognized mode in global options: %s\n", value);
-	    combobox = GTK_COMBO_BOX(gtk_builder_get_object(glade_xml,
-		"access_mode_menu"));
-	    gtk_combo_box_set_active(combobox, global_options.access_mode);
+	    break;
+
+	case FREERDP_VERSION:
+	    version = atoi(value);
+	    if (version != 2 && version != 3)
+		version = 2;
+	    break;
+
+	case FREERDP_PATH:
+	    global_options.freerdp_path = strdup(value);
 	    break;
 
 	default:
 	    mylog("Ignoring global config key '%s'\n", key);
 	    return;
     }
+
+    global_options.freerdp_version = version;
 }
 
 /************************************************************************

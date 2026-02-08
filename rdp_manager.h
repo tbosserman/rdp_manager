@@ -35,7 +35,9 @@ typedef struct {
 // A bit insane that I'm creating a struct for this, but we'll probably
 // think of other global options as time goes by....
 typedef struct {
-    int		access_mode; /* REMOTE or LOCAL */
+    int		access_mode;	 // REMOTE or LOCAL
+    int		freerdp_version; // either 2 or 3
+    char	*freerdp_path;   // path to xfreerdp binary
 } options_t;
 
 extern int save_entries(char *entries_file, entry_t *entries, int num_entries);

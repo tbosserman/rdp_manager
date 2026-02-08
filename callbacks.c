@@ -164,6 +164,8 @@ my_gtk_init()
     int			i;
     char		*home;
     GtkWidget		*window1;
+    GtkComboBox		*combobox;
+    GtkEntry		*entry;
     struct sigaction	newact, oldact;
 
     memset(&newact, 0, sizeof(newact));
@@ -218,9 +220,26 @@ my_gtk_init()
     }
 
     mylog("Loading entries from %s\n", entries_file);
+    // Initialize global options in case they aren't specified in config file.
+    global_options.access_mode = 0;
+    global_options.freerdp_version = 2;
+    global_options.freerdp_path = NULL;
+
     num_entries = load_entries(entries_file, entries);
+    if (global_options.freerdp_path == NULL)
+	global_options.freerdp_path = strdup("");
     for (i = 0; i < num_entries; ++i)
 	add_row(entries[i].fields[ENTRY_NAME]);
+
+    // Set the GUI objects to show what was specified in the config file.
+    combobox = GTK_COMBO_BOX(gtk_builder_get_object(glade_xml,
+               "access_mode_menu"));
+    gtk_combo_box_set_active(combobox, global_options.access_mode);
+    combobox = GTK_COMBO_BOX(gtk_builder_get_object(glade_xml,
+	       "freerdp_version"));
+    gtk_combo_box_set_active(combobox, global_options.freerdp_version - 2);
+    entry = GTK_ENTRY(gtk_builder_get_object(glade_xml, "freerdp_path"));
+    gtk_entry_set_text(entry, global_options.freerdp_path);
     window1 = (GtkWidget *)gtk_builder_get_object(glade_xml, "window1");
     gtk_widget_show_all(window1);
     /* Call netmon once by to notify user immediately if no internet */
@@ -377,7 +396,7 @@ launch()
     gboolean		multimon;
     char		**fields, *user, *passwd, *gw_user, *gw_passwd;
     char		*args[MAX_ARGS], *temp, *p, logfile[1024], *host;
-    char		*msg, *domain;
+    char		*msg, *domain, *prog;
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
@@ -407,6 +426,7 @@ launch()
     args[fnum++] = gen_vector("xfreerdp");
     args[fnum++] = gen_vector("/sound");
     args[fnum++] = gen_vector("/audio-mode:0");
+    // For freerdpv3 the following would be "/cert:ignore"
     args[fnum++] = gen_vector("/cert-ignore");
     if (multimon)
 	args[fnum++] = gen_vector("/multimon");
@@ -427,6 +447,8 @@ launch()
     
     if (fields[GATEWAY][0] != '\0')
     {
+	// FreeRDPv3 handles gateways quite differently. The general case looks
+	// like this: /gw:g:<gateway>:<port>,u:<user>,d:<domain>,p:<password>
 	host = fields[GATEWAY];
 	portnum = atoi(fields[GW_PORT]);
 	gw_passwd = (char *)gtk_entry_get_text(gw_pwd_widget);
@@ -497,10 +519,13 @@ launch()
 	    exit(1);
 	close(fd);
 	close(0);
-	execv(XFREERDP, args);
+	prog = global_options.freerdp_path;
+	if (prog[0] == '\0')
+	    prog = XFREERDP;
+	execv(prog, args);
 	/* Shouldn't get here unless exec craps out completely */
 	fp = fopen(logfile, "a");
-	fprintf(fp, "execv failed: %s\n", strerror(errno));
+	fprintf(fp, "Execution of '%s' failed: %s\n", prog, strerror(errno));
 	fclose(fp);
 	// This sleep() is a MAJOR, UGLY KLUDGE!!! It's here because if
 	// the child process exits too quickly then the GUI in the parent
@@ -895,6 +920,31 @@ on_options_button_clicked()
 }
 
 /************************************************************************
+ ********************     ON_OPTIONS_OK_CLICKED      ********************
+ ************************************************************************/
+G_MODULE_EXPORT void
+on_options_ok_clicked(GtkButton *button, gpointer user_data)
+{
+    GtkComboBox		*combobox;
+    GtkEntry		*entry;
+    int			value;
+
+    combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "access_mode_menu");
+    value = gtk_combo_box_get_active(combobox);
+    global_options.access_mode = value;
+
+    combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "freerdp_version");
+    value = gtk_combo_box_get_active(combobox);
+    global_options.freerdp_version = value + 2;
+
+    // Probably ought to check and see if that path exists....
+    entry = (GtkEntry *)gtk_builder_get_object(glade_xml, "freerdp_path");
+    free(global_options.freerdp_path);
+    global_options.freerdp_path = strdup((char *)gtk_entry_get_text(entry));
+    alltrim(global_options.freerdp_path);
+}
+
+/************************************************************************
  ********************        OPTIONS_CLICKED         ********************
  ************************************************************************/
 G_MODULE_EXPORT void
@@ -902,7 +952,6 @@ options_clicked(GtkButton *button, gpointer user_data)
 {
     GtkWidget		*win;
     GtkComboBox		*combobox, *version;
-    int			mode;
     GtkButton		*reset, *cancel;
     GtkEntry		*entry;
 
@@ -926,30 +975,12 @@ options_clicked(GtkButton *button, gpointer user_data)
     if (button == cancel)
     {
 	gtk_combo_box_set_active(combobox, global_options.access_mode);
+	gtk_combo_box_set_active(version, global_options.freerdp_version - 2);
+	gtk_entry_set_text(entry, global_options.freerdp_path);
 	return;
     }
 
-    mode = gtk_combo_box_get_active(combobox);
-    global_options.access_mode = mode;
-    if (save_entries(entries_file, entries, num_entries) < 0)
-	alert("error saving to %s: %s", entries_file, strerror(errno));
-}
-
-/************************************************************************
- ********************     ON_OPTIONS_OK_CLICKED      ********************
- ************************************************************************/
-G_MODULE_EXPORT void
-on_options_ok_clicked(GtkButton *button, gpointer user_data)
-{
-    GtkWidget		*win;
-    GtkComboBox		*combobox;
-    int			mode;
-
-    win = (GtkWidget *)gtk_builder_get_object(glade_xml, "options_window");
-    combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "access_mode_menu");
-    gtk_widget_hide(win);
-    mode = gtk_combo_box_get_active(combobox);
-    global_options.access_mode = mode;
+    on_options_ok_clicked(button, user_data);
     if (save_entries(entries_file, entries, num_entries) < 0)
 	alert("error saving to %s: %s", entries_file, strerror(errno));
 }
