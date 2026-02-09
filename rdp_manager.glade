@@ -509,7 +509,7 @@ Leave blank to use entire screen.</property>
     <property name="title" translatable="yes">RDP Manager Alert</property>
     <property name="window-position">center-on-parent</property>
     <property name="destroy-with-parent">True</property>
-    <property name="type-hint">notification</property>
+    <property name="type-hint">dialog</property>
     <property name="transient-for">window1</property>
     <property name="buttons">close</property>
     <child internal-child="vbox">

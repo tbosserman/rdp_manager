@@ -14,7 +14,7 @@ endif
 TARGET=rdp_manager.$(ARCH)
 all: $(TARGET) noip2.$(ARCH)
 
-$(TARGET): main.o callbacks.o entries.o crypto.o netmon.o ping_dns.o
+$(TARGET): main.o callbacks.o entries.o crypto.o netmon.o ping_dns.o detect.o launch.o
 	$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
 main.o: main.c rdp_xml.h version.h
