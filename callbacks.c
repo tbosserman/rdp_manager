@@ -222,7 +222,7 @@ my_gtk_init()
     mylog("Loading entries from %s\n", entries_file);
     // Initialize global options in case they aren't specified in config file.
     global_options.access_mode = 0;
-    global_options.freerdp_version = 2;
+    global_options.freerdp_version = AUTO_DETECT;
     global_options.freerdp_path = NULL;
 
     num_entries = load_entries(entries_file, entries);
@@ -237,7 +237,7 @@ my_gtk_init()
     gtk_combo_box_set_active(combobox, global_options.access_mode);
     combobox = GTK_COMBO_BOX(gtk_builder_get_object(glade_xml,
 	       "freerdp_version"));
-    gtk_combo_box_set_active(combobox, global_options.freerdp_version - 2);
+    gtk_combo_box_set_active(combobox, global_options.freerdp_version);
     entry = GTK_ENTRY(gtk_builder_get_object(glade_xml, "freerdp_path"));
     gtk_entry_set_text(entry, global_options.freerdp_path);
     window1 = (GtkWidget *)gtk_builder_get_object(glade_xml, "window1");
@@ -401,12 +401,6 @@ launch()
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
 
-    if (global_options.freerdp_version == 3)
-    {
-	alert("FreeRDP version 3 not yet supported");
-	return;
-    }
-
     box = GTK_LIST_BOX(gtk_builder_get_object(glade_xml, "listbox"));
     row = gtk_list_box_get_selected_row(box);
     if (row == NULL)
@@ -432,8 +426,10 @@ launch()
     args[fnum++] = gen_vector("xfreerdp");
     args[fnum++] = gen_vector("/sound");
     args[fnum++] = gen_vector("/audio-mode:0");
-    // For freerdpv3 the following would be "/cert:ignore"
-    args[fnum++] = gen_vector("/cert-ignore");
+    if (global_options.freerdp_version == FREERDPV3)
+	args[fnum++] = gen_vector("/cert:ignore");
+    else
+	args[fnum++] = gen_vector("/cert-ignore");
     if (multimon)
 	args[fnum++] = gen_vector("/multimon");
     if (temp[0] != '\0')
@@ -463,12 +459,24 @@ launch()
 	    gw_user = user;
 	if (gw_passwd[0] == '\0' || strcmp(user, gw_user) == 0)
 	    gw_passwd = passwd;
-	args[fnum++] = gen_vector("/g:%s:%s", fields[GATEWAY], fields[GW_PORT]);
-	if (domain)
-	    args[fnum++] = gen_vector("/gu:%s@%s", gw_user, domain);
+	if (global_options.freerdp_version == FREERDPV2)
+	{
+	    args[fnum++] = gen_vector("/g:%s:%s", fields[GATEWAY], fields[GW_PORT]);
+	    if (domain)
+		args[fnum++] = gen_vector("/gu:%s@%s", gw_user, domain);
+	    else
+		args[fnum++] = gen_vector("/gu:%s", gw_user);
+	    args[fnum++] = gen_vector("/gp:%s", gw_passwd);
+	}
 	else
-	    args[fnum++] = gen_vector("/gu:%s", gw_user);
-	args[fnum++] = gen_vector("/gp:%s", gw_passwd);
+	{
+	    if (domain)
+		gen_vector("/gw:g:%s:%s,u:%s,d:%s,p:%s", fields[GATEWAY],
+		    fields[GW_PORT], user, domain, gw_passwd);
+	    else
+		gen_vector("/gw:g:%s:%s,u:%s,p:%s", fields[GATEWAY],
+		    fields[GW_PORT], user, gw_passwd);
+	}
 	args[fnum++] = NULL;
     }
     else
@@ -928,12 +936,26 @@ on_options_button_clicked()
 /************************************************************************
  ********************     ON_OPTIONS_OK_CLICKED      ********************
  ************************************************************************/
-G_MODULE_EXPORT void
+int
 on_options_ok_clicked(GtkButton *button, gpointer user_data)
 {
     GtkComboBox		*combobox;
     GtkEntry		*entry;
+    char		*new_path;
     int			value;
+
+    entry = (GtkEntry *)gtk_builder_get_object(glade_xml, "freerdp_path");
+    new_path = strdup((char *)gtk_entry_get_text(entry));
+    alltrim(new_path);
+    if (new_path[0] != '\0' && access(new_path, X_OK) < 0)
+    {
+	alert("%s: %s", new_path, strerror(errno));
+	fprintf(stderr, "%s: %s", new_path, strerror(errno));
+	free(new_path);
+	return(-1);
+    }
+    free(global_options.freerdp_path);
+    global_options.freerdp_path = new_path;
 
     combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "access_mode_menu");
     value = gtk_combo_box_get_active(combobox);
@@ -941,13 +963,9 @@ on_options_ok_clicked(GtkButton *button, gpointer user_data)
 
     combobox = (GtkComboBox *)gtk_builder_get_object(glade_xml, "freerdp_version");
     value = gtk_combo_box_get_active(combobox);
-    global_options.freerdp_version = value + 2;
+    global_options.freerdp_version = value;
 
-    // Probably ought to check and see if that path exists....
-    entry = (GtkEntry *)gtk_builder_get_object(glade_xml, "freerdp_path");
-    free(global_options.freerdp_path);
-    global_options.freerdp_path = strdup((char *)gtk_entry_get_text(entry));
-    alltrim(global_options.freerdp_path);
+    return(0);
 }
 
 /************************************************************************
@@ -976,19 +994,20 @@ options_clicked(GtkButton *button, gpointer user_data)
 	return;
     }
 
-    gtk_widget_hide(win);
-
     if (button == cancel)
     {
 	gtk_combo_box_set_active(combobox, global_options.access_mode);
-	gtk_combo_box_set_active(version, global_options.freerdp_version - 2);
+	gtk_combo_box_set_active(version, global_options.freerdp_version);
 	gtk_entry_set_text(entry, global_options.freerdp_path);
+	gtk_widget_hide(win);
 	return;
     }
 
-    on_options_ok_clicked(button, user_data);
+    if (on_options_ok_clicked(button, user_data) < 0)
+	return;
     if (save_entries(entries_file, entries, num_entries) < 0)
 	alert("error saving to %s: %s", entries_file, strerror(errno));
+    gtk_widget_hide(win);
 }
 
 /************************************************************************

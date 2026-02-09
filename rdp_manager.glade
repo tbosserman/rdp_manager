@@ -506,11 +506,10 @@ Leave blank to use entire screen.</property>
   </object>
   <object class="GtkMessageDialog" id="alert_window">
     <property name="can-focus">False</property>
-    <property name="type">popup</property>
+    <property name="title" translatable="yes">RDP Manager Alert</property>
     <property name="window-position">center-on-parent</property>
     <property name="destroy-with-parent">True</property>
-    <property name="type-hint">dialog</property>
-    <property name="decorated">False</property>
+    <property name="type-hint">notification</property>
     <property name="transient-for">window1</property>
     <property name="buttons">close</property>
     <child internal-child="vbox">
@@ -611,6 +610,7 @@ Leave blank to use entire screen.</property>
                 <property name="halign">start</property>
                 <property name="active">0</property>
                 <items>
+                  <item translatable="yes">Auto</item>
                   <item translatable="yes">2</item>
                   <item translatable="yes">3</item>
                 </items>

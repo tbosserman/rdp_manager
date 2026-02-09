@@ -24,6 +24,11 @@ static char *mode_values[] = {
     "LOCAL",
     "REMOTE"
 };
+static char *version_values[] = {
+    "AUTO",
+    "V2",
+    "V3"
+};
 
 /************************************************************************
  ********************          SAVE_ENTRIES          ********************
@@ -43,7 +48,8 @@ save_entries(char *entries_file, entry_t *entries, int num_entries)
     // Save the global config values
     fprintf(fp, "[GLOBAL]\n");
     fprintf(fp, "access_mode: %s\n", mode_values[global_options.access_mode]);
-    fprintf(fp, "freerdp_version: %d\n", global_options.freerdp_version);
+    j = global_options.freerdp_version;
+    fprintf(fp, "freerdp_version: %s\n", version_values[j]);
     path = global_options.freerdp_path;
     if (path && path[0] != '\0')
 	fprintf(fp, "freerdp_path: %s\n", path);
@@ -77,8 +83,6 @@ parse_global_options(char *key, char *value)
 	    break;
     }
 
-    // Set freerdp_version to 2 for backward compatibility with old
-    // config files that didn't specify it.
     switch(i)
     {
 	case ACCESS_MODE_KEY:
@@ -91,12 +95,14 @@ parse_global_options(char *key, char *value)
 	    break;
 
 	case FREERDP_VERSION:
-	    version = atoi(value);
-	    if (version != 2 && version != 3)
+	    for (version = 0; version <= FREERDPV3; ++version)
+		if (strcmp(value, version_values[version]) == 0)
+		    break;
+	    if (version > FREERDPV3)
 	    {
-		mylog("WARNING: FreeRDP version %d invalid. Defaulting to 2.\n",
-		    version);
-		version = 2;
+		mylog("WARNING: FreeRDP version %s invalid. Defaulting to AUTO.\n",
+		    value);
+		version = AUTO_DETECT;
 	    }
 	    global_options.freerdp_version = version;
 	    break;
@@ -130,8 +136,8 @@ load_entries(char *entries_file, entry_t *entries)
     entry = &entries[0];
     entname = NULL;
     global = FALSE;
-    // Default to FreeRDP v2 if not specified in config.
-    global_options.freerdp_version = 2;
+    // Default to FreeRDP "auto detect" if not specified in config.
+    global_options.freerdp_version = AUTO_DETECT;
     while (fgets(line, sizeof(line), fp) != NULL)
     {
 	line[strlen(line)-1] = '\0';

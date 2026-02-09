@@ -28,6 +28,11 @@
 #define LOCAL		0
 #define REMOTE		1
 
+// FreeRDP Versioning
+#define AUTO_DETECT	0
+#define FREERDPV2	1
+#define FREERDPV3	2
+
 typedef struct {
     char	*fields[NUM_FIELDS];
 } entry_t;
