@@ -41,7 +41,7 @@ launch()
     gboolean		multimon;
     char		**fields, *user, *passwd, *gw_user, *gw_passwd;
     char		*args[MAX_ARGS], *temp, *p, logfile[1024], *host;
-    char		*msg, *domain, *prog;
+    char		*msg, *domain, *prog, argtemp[1024];
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
@@ -159,18 +159,19 @@ launch()
      */
     for (i = 0; args[i] != NULL; ++i)
     {
-	if (memcmp(args[i], "/gp:", 4) == 0 ||
-	    memcmp(args[i], "/p:", 3) == 0)
+	strcpy(argtemp, args[i]);
+	if (memcmp(argtemp, "/gp:", 4) == 0 ||
+	    memcmp(argtemp, "/p:", 3) == 0)
 	{
-	    temp = strdup(args[i]);
-	    p = strchr(temp, ':') + 1;
-	    while (*p != '\0')
-		*p++ = '*';
-	    mylog("%s\n", temp);
-	    free(temp);
+	    p = strchr(argtemp, ':') + 1;
+	    while (*p != '\0') *p++ = '*';
 	}
-	else
-	    mylog("%s\n", args[i]);
+	else if (memcmp(argtemp, "/gw:", 4) == 0)
+	{
+	    p = strstr(argtemp, ",p:") + 3;
+	    while (*p != '\0') *p++ = '*';
+	}
+	mylog("%s\n", argtemp);
     }
 
     if ((xfreerdp_pid = fork()) == 0)
