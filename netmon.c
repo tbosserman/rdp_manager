@@ -313,7 +313,7 @@ test_alarm_handler(int sig)
 gboolean
 test_connect(char *hostname, int port)
 {
-    int			code, sockfd, connfd;
+    int			code, sockfd;
     char		service[128], printable[128];
     struct addrinfo	hints, *ai, *orig_ai;
     struct sockaddr_in	*in4;
@@ -359,11 +359,10 @@ test_connect(char *hostname, int port)
 	}
 	inet_ntop(ai->ai_family, addr, printable, sizeof(printable));
 	mylog("Connecting to %s\n", printable);
-	if ((connfd = connect(sockfd, ai->ai_addr, ai->ai_addrlen)) < 0)
+	if ((code = connect(sockfd, ai->ai_addr, ai->ai_addrlen)) < 0)
 	    mylog("socket(): %d: %s\n", errno, strerror(errno));
 	close(sockfd);
-	close(connfd);
-	if (connfd >= 0)
+	if (code >= 0)
 	    break;
     }
     freeaddrinfo(orig_ai);
