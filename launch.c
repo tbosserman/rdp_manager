@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <gtk/gtk.h>
 #include "rdp_manager.h"
 
@@ -31,17 +32,48 @@ gen_vector(char *fmt, ...)
 }
 
 /************************************************************************
+ ********************            LOG_ARGS            ********************
+ ************************************************************************/
+void
+log_args(char *args[])
+{
+    int		i;
+    char	*p, argtemp[1024];
+    /*
+     * Log the command we're about to execute. IMPORTANT: look for
+     * arguments which have passwords in them and replace the password
+     * with asterisks before logging.
+     */
+    for (i = 0; args[i] != NULL; ++i)
+    {
+	strcpy(argtemp, args[i]);
+	if (memcmp(argtemp, "/gp:", 4) == 0 ||
+	    memcmp(argtemp, "/p:", 3) == 0)
+	{
+	    p = strchr(argtemp, ':') + 1;
+	    while (*p != '\0') *p++ = '*';
+	}
+	else if (memcmp(argtemp, "/gw:", 4) == 0)
+	{
+	    p = strstr(argtemp, ",p:") + 3;
+	    while (*p != '\0') *p++ = '*';
+	}
+	mylog("%s\n", argtemp);
+    }
+}
+
+/************************************************************************
  ********************             LAUNCH             ********************
  ************************************************************************/
 void
 launch()
 {
-    FILE		*fp;
-    int			i, fd, rownum, fnum, portnum, version;
+    FILE		*fp, *tempfp;
+    int			i, fd, rownum, fnum, portnum, version, tempfd;
     gboolean		multimon;
     char		**fields, *user, *passwd, *gw_user, *gw_passwd;
-    char		*args[MAX_ARGS], *temp, *p, logfile[1024], *host;
-    char		*msg, *domain, *prog, argtemp[1024];
+    char		*args[MAX_ARGS], *temp, logfile[1024], *host;
+    char		*msg, *domain, *prog, temparg[64], tempfile[64];
     GtkListBox		*box;
     GtkListBoxRow	*row;
     GtkEntry		*pwd_widget, *gw_pwd_widget;
@@ -152,32 +184,40 @@ launch()
 	return;
     }
 
-    /*
-     * Log the command we're about to execute. IMPORTANT: look for
-     * arguments which have passwords in them and replace the password
-     * with asterisks before logging.
-     */
-    for (i = 0; args[i] != NULL; ++i)
+    // Log commandline args for debugging purposes
+    log_args(args);
+
+    // FreeRDPv3 has a nice feature: you can put the command line arguments
+    // into a file, then tell xfreerdp to take its command line from that
+    // file. Further, you can pass in an open file descriptor via
+    // /args-from:fd:<number>
+    // This means we can create a temporary file, unlink that file whilst
+    // holding it open, and then pass that fd to xfreerdp. That way the
+    // passwords won't show up in the output of the "ps" command. Neato!
+    strcpy(tempfile, "/tmp/rdptmp-XXXXXX");
+    if ((tempfd = mkstemp(tempfile)) < 0)
     {
-	strcpy(argtemp, args[i]);
-	if (memcmp(argtemp, "/gp:", 4) == 0 ||
-	    memcmp(argtemp, "/p:", 3) == 0)
-	{
-	    p = strchr(argtemp, ':') + 1;
-	    while (*p != '\0') *p++ = '*';
-	}
-	else if (memcmp(argtemp, "/gw:", 4) == 0)
-	{
-	    p = strstr(argtemp, ",p:") + 3;
-	    while (*p != '\0') *p++ = '*';
-	}
-	mylog("%s\n", argtemp);
+	alert("Unable to create temporary file: %s", strerror(errno));
+	return;
     }
+    unlink(tempfile);
+    tempfp = fdopen(tempfd, "w");
+    for (i = 1; args[i] != NULL; ++i)
+	fprintf(tempfp, "%s\n", args[i]);
+    fflush(tempfp);
+    (void)lseek(tempfd, 0, SEEK_SET);
 
     if ((xfreerdp_pid = fork()) == 0)
     {
+	if (version == FREERDPV3)
+	{
+	    // /args-from:fd:<number>
+	    sprintf(temparg, "/args-from:fd:%d", tempfd);
+	}
 	for (i = 3; i <= 255; ++i)
-	    close(i);
+	    if (i != tempfd)
+		close(i);
+
 	snprintf(logfile, sizeof(logfile), "%s/xfreerdp.log", config_dir);
 	/*
 	 * It really should be impossible for the open and dup calls to
@@ -192,7 +232,12 @@ launch()
 	    exit(1);
 	close(fd);
 	close(0);
-	execv(prog, args);
+	if (version == FREERDPV2)
+	    execv(prog, args);
+	else
+	{
+	    execl(prog, args[0], temparg, NULL);
+	}
 	/* Shouldn't get here unless exec craps out completely */
 	fp = fopen(logfile, "a");
 	fprintf(fp, "Execution of '%s' failed: %s\n", prog, strerror(errno));
@@ -210,6 +255,7 @@ launch()
 
     // alert("Please check your phone for a Duo push authentication request.");
 
+    close(tempfd);
     for (i = 0; args[i] != NULL; ++i)
 	free(args[i]);
 }
